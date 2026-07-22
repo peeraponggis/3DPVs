@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบวิเคราะห์ค่าไฟฟ้า & ประเมิน Solar PV (Puter.js + TOU AI)</title>
+    
+    <!-- Puter.js (AI Core หลัก) -->
+    <script src="https://js.puter.com/v2/"></script>
+    
+    <!-- Tesseract.js v5.0.4 (ใช้เป็น Fallback เผื่อ Puter Network Error) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js"></script>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background-color: #f4f6f9; color: #333; }
+        h1 { text-align: center; color: #1565c0; font-weight: 700; }
+        .container { max-width: 1300px; margin: 0 auto; background: #fff; padding: 25px; border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.08); }
+        
+        .section-box { background: #e3f2fd; padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #bbdefb; }
+        .ocr-box { background: #f3e5f5; border-color: #e1bee7; } /* สีเปลี่ยนให้เข้ากับ Puter AI (ม่วง) */
+        
+        .row-group { display: flex; gap: 15px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+        .row-group label { font-weight: bold; color: #0d47a1; }
+        input[type="text"], input[type="number"] { padding: 8px; border: 1px solid #90caf9; border-radius: 4px; font-size: 13px; }
+        
+        button { padding: 10px 20px; background: #1565c0; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; font-weight: bold; transition: 0.2s; display: inline-flex; align-items: center; gap: 6px; }
+        button:hover { background: #0d47a1; }
+        button.ai-btn { background: #6a1b9a; }
+        button.ai-btn:hover { background: #4a148c; }
+        button:disabled { background: #9e9e9e; cursor: not-allowed; }
+        
+        /* ---------------- Console Logs ---------------- */
+        .console-panel { background: #10151C; border-radius: 8px; overflow: hidden; margin-top: 15px; }
+        .console-head { background: #1B2430; color: #E7ECF1; padding: 8px 15px; font-size: 12px; font-weight: bold; display: flex; justify-content: space-between; }
+        .console-head .status { color: #ce93d8; font-family: monospace; }
+        .console { height: 260px; overflow-y: auto; padding: 10px 15px; font-family: 'Courier New', monospace; font-size: 13px; line-height: 1.6; }
+        .log-line { display: flex; gap: 10px; padding: 2px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .log-time { color: #51606D; flex-shrink: 0; }
+        .log-tag { flex-shrink: 0; width: 55px; font-weight: 600; }
+        .log-msg { color: #E7ECF1; }
+        .log-info .log-tag { color: #00B8B0; }
+        .log-success .log-tag { color: #3FB65F; }
+        .log-warn .log-tag { color: #F2A93B; }
+        .log-ai .log-tag { color: #ce93d8; }
+        .log-error .log-tag { color: #E14F4F; }
+        
+        /* ---------------- ตาราง TOU Verification ---------------- */
+        .table-responsive { overflow-x: auto; margin-top: 15px; }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; background: #fff; }
+        th, td { border: 1px solid #ddd; padding: 6px 4px; text-align: center; }
+        th { background: #1565c0; color: white; white-space: nowrap; }
+        th.tou-head { background: #6a1b9a; } /* แยกสีหัวตาราง TOU */
+        td input { width: 100%; box-sizing: border-box; text-align: center; padding: 5px 2px; border: 1px solid #ccc; border-radius: 3px; font-family: inherit; }
+        .tou-input { background: #f3e5f5; border-color: #ce93d8; font-weight: bold; color: #4a148c; }
+        .total-input { background: #e8f5e9; border-color: #4caf50; font-weight: bold; color: #1b5e20; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1><i class="fa-solid fa-bolt"></i> ระบบวิเคราะห์ค่าไฟฟ้า TOU & ประเมิน Solar PV</h1>
+    
+    <div class="section-box">
+        <div class="row-group">
+            <label style="width:150px;">ชื่อโครงการ:</label>
+            <input type="text" id="project_name" placeholder="ชื่อโครงการ/ลูกค้า" style="width: 250px;">
+        </div>
+        <div class="row-group">
+            <label style="width:150px;">ค่า Ft (บาท/หน่วย):</label>
+            <input type="number" id="global_ft" value="0.1623" step="0.0001">
+            <label style="margin-left:15px;">VAT (%):</label>
+            <input type="number" id="global_vat" value="7" step="1" style="width: 60px;">
+            <label style="margin-left:15px;">PSH (ชม./วัน):</label>
+            <input type="number" id="global_psh" value="4.3" step="0.1" style="width: 80px;">
+        </div>
+    </div>
+
+    <!-- OCR / Puter AI Section -->
+    <div class="section-box ocr-box">
+        <h3 style="color: #4a148c; margin-top: 0;"><i class="fa-solid fa-brain"></i> สกัดข้อมูลด้วย Puter.js (Vision AI & TOU Fallback)</h3>
+        <p style="font-size: 13px; color: #555;">รองรับบิล TOU ที่มีความซับซ้อน (P, OP, H) และภาพเบลอ โดยใช้ AI ช่วยแกะโครงสร้างตาราง</p>
+        
+        <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+            <input type="file" id="billFiles" multiple accept=".pdf, image/jpeg, image/png, image/jpg" style="padding: 6px; background: #fff; border: 1px solid #ccc; border-radius: 4px; flex-grow: 1; max-width: 400px;">
+            <button class="ai-btn" id="startBtn" onclick="executePuterPipeline()"><i class="fa-solid fa-microchip"></i> เริ่มสกัดข้อมูลด้วย AI</button>
+        </div>
+
+        <div class="console-panel">
+            <div class="console-head">
+                <span><i class="fa-solid fa-terminal"></i> AI EXTRACTION LOG</span>
+                <span class="status" id="consoleStatus">READY</span>
+            </div>
+            <div id="consoleLog" class="console">
+                <div class="log-line log-info"><span class="log-time">-</span><span class="log-tag">INFO</span><span class="log-msg">Puter.js Engine พร้อมทำงาน...</span></div>
+            </div>
+        </div>
+        
+        <div class="table-responsive" id="verify_section" style="display: none;">
+            <table id="verifyTable">
+                <thead>
+                    <tr>
+                        <th>ชื่อผู้ใช้ไฟ</th><th>ประจำเดือน</th><th>ประเภท</th><th>ตัวคูณ</th>
+                        <th class="tou-head" title="Peak">P (Peak)</th>
+                        <th class="tou-head" title="Off-Peak">OP (Off-Peak)</th>
+                        <th class="tou-head" title="Holiday">H (Holiday)</th>
+                        <th style="background:#2e7d32;">รวมหน่วยทั้งหมด (kWh)</th>
+                        <th>ลบ</th>
+                    </tr>
+                </thead>
+                <tbody id="verifyTableBody"></tbody>
+            </table>
+            <br>
+            <button onclick="calculateSolarTOU()" style="background: #fbc02d; color: #333; width: 100%; font-size: 16px; padding: 12px; justify-content: center;">
+                <i class="fa-solid fa-calculator"></i> ยืนยันข้อมูล & ประเมิน Solar PV
+            </button>
+        </div>
+    </div>
+
+    <!-- Summary Section -->
+    <div class="section-box" id="summary_section" style="display: none; background: #fff3e0; border-color: #ffe0b2;">
+        <h3 style="color: #e65100;"><i class="fa-solid fa-chart-simple"></i> สรุปผลการวิเคราะห์</h3>
+        <div id="solar_evaluation" style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #ccc;"></div>
+    </div>
+</div>
+
+<script>
+    function log(msg, level = 'info'){
+        const consoleLog = document.getElementById('consoleLog');
+        const time = new Date().toLocaleTimeString('en-GB', { hour12: false });
+        const tagMap = { info:'INFO', success:'OK', warn:'WARN', error:'ERR', ai:'PUTER' };
+        
+        const line = document.createElement('div');
+        line.className = `log-line log-${level}`;
+        line.innerHTML = `<span class="log-time">[${time}]</span><span class="log-tag">${tagMap[level]}</span><span class="log-msg">${msg}</span>`;
+        consoleLog.appendChild(line);
+        consoleLog.scrollTop = consoleLog.scrollHeight;
+    }
+
+    // =========================================================================
+    // 1. PUTER.JS VISION AI PIPELINE
+    // =========================================================================
+    async function executePuterPipeline() {
+        const files = document.getElementById('billFiles').files;
+        if (files.length === 0) return alert("กรุณาเลือกไฟล์ใบแจ้งหนี้ก่อนครับ");
+        
+        document.getElementById('verify_section').style.display = "block";
+        document.getElementById('summary_section').style.display = "none";
+        document.getElementById('startBtn').disabled = true;
+        
+        log(`════ เริ่มกระบวนการ Puter AI Vision (${files.length} ไฟล์) ════`, 'info');
+        document.getElementById('consoleStatus').innerText = 'PROCESSING...';
+
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            log(`─── วิเคราะห์ภาพ: ${file.name} ───`, 'info');
+            
+            try {
+                // 1. ลองใช้ Puter.js Vision AI เป็นหลักก่อน (เก่งเรื่องตาราง TOU มาก)
+                log(`กำลังส่งภาพให้ Puter AI วิเคราะห์โครงสร้างตาราง TOU...`, 'ai');
+                
+                let parsedData = await extractWithPuterAI(file);
+                
+                if (parsedData && (parsedData.unit_total > 0 || parsedData.unit_p > 0)) {
+                    log(`Puter AI สกัดข้อมูลสำเร็จ!`, 'success');
+                } else {
+                    // 2. ถ้า AI คืนค่าว่าง (Fallback ไปใช้ Tesseract + Regex เฉพาะกิจ)
+                    log(`AI ตอบกลับไม่ครบถ้วน... สลับไปใช้ Tesseract + TOU Fallback Engine`, 'warn');
+                    parsedData = await fallbackTesseractTOU(file);
+                }
+
+                addVerifyRowToTable(parsedData, file.name);
+
+            } catch (err) {
+                log(`Puter AI Error: ${err.message}. สลับไปใช้ Tesseract Fallback...`, 'error');
+                let parsedData = await fallbackTesseractTOU(file);
+                addVerifyRowToTable(parsedData, file.name);
+            }
+        }
+        
+        log('════ กระบวนการเสร็จสิ้น ════', 'success');
+        document.getElementById('consoleStatus').innerText = 'STANDBY';
+        document.getElementById('startBtn').disabled = false;
+    }
+
+    // =========================================================================
+    // 2. PROMPT FOR PUTER AI
+    // =========================================================================
+    async function extractWithPuterAI(file) {
+        const prompt = `
+        Analyze this Thai electricity bill. Read the table carefully. 
+        Return ONLY a valid JSON object (no markdown, no backticks, no explanations).
+        Keys required:
+        - "name": string (Customer name)
+        - "bill_period": string (e.g., "05/2569" or "12/65")
+        - "type": string (Tariff type, e.g., "3224" or "1.1.2")
+        - "multi": number (Multiplier/ตัวคูณ, default to 1)
+        - "unit_p": number (Peak units - look for row 'P' or 'Peak' under energy/พลังงานไฟฟ้า)
+        - "unit_op": number (Off-Peak units - look for row 'OP' or 'Off Peak')
+        - "unit_h": number (Holiday units - look for row 'H' or 'Holiday')
+        - "unit_total": number (Total kWh. If TOU, sum of P+OP+H. If standard bill, just the total units used)
+        
+        Extract numbers without commas. If a TOU field is missing, set it to 0.
+        `;
+
+        const response = await puter.ai.chat(prompt, file);
+        
+        // Clean JSON output (เผื่อ AI ดื้อใส่ Markdown มาให้)
+        let jsonStr = response.text.replace(/```json/gi, '').replace(/```/gi, '').trim();
+        
+        // หา Scope ของ JSON
+        let startIndex = jsonStr.indexOf('{');
+        let endIndex = jsonStr.lastIndexOf('}');
+        if (startIndex !== -1 && endIndex !== -1) {
+            jsonStr = jsonStr.substring(startIndex, endIndex + 1);
+        }
+        
+        return JSON.parse(jsonStr);
+    }
+
+    // =========================================================================
+    // 3. TOU SPECIFIC FALLBACK ENGINE (TESSERACT + REGEX)
+    // =========================================================================
+    async function fallbackTesseractTOU(file) {
+        log(`เริ่มต้น Tesseract OCR Engine...`, 'info');
+        const worker = await Tesseract.createWorker('tha+eng', 1);
+        const { data } = await worker.recognize(file);
+        await worker.terminate();
+        
+        let text = data.text;
+        log(`กวาดข้อความด้วย TOU Regex Fallback...`, 'info');
+        
+        let d = { name: "", bill_period: "", type: "", multi: 1, unit_p: 0, unit_op: 0, unit_h: 0, unit_total: 0 };
+        
+        let clean = text.replace(/\n/g, ' ').replace(/\s+/g, ' ');
+        let noSpace = text.replace(/\s+/g, '');
+
+        // หาประเภท
+        let typeM = clean.match(/\b(1\.1\.1|1\.1\.2|1\.2\.1|1\.2\.2|2\.1\.1|2\.1\.2|3\.1\.1|3\.2\.1|1125|3224)\b/);
+        if(typeM) d.type = typeM[1];
+
+        // หาเดือน
+        let periodM = noSpace.match(/(?:ประจำเดือน|บิลประจำเดือน|BillPeriod)[^\d]*(\d{1,2}\/\d{2,4})/i);
+        if(periodM) d.bill_period = periodM[1];
+
+        // หาชื่อ
+        let nameM = clean.match(/(?:ชื่อผู้ใช้ไฟ|เรียน)\s*[:\s]*([ก-๙A-Za-z\.\s]+)(?:\s+สถานที่|\s+ที่อยู่)/);
+        if(nameM) d.name = nameM[1].trim();
+
+        // ---------------- ฟังก์ชันกวาดข้อมูลแบบเฉพาะกิจสำหรับ TOU ----------------
+        let lines = text.split('\n');
+        lines.forEach(line => {
+            // จับบรรทัดที่ขึ้นต้นด้วย P, OP, H แล้วตามด้วยกลุ่มตัวเลข
+            // รูปแบบบิล: P [เลขอ่านหลัง] [เลขอ่านก่อน] [หน่วยที่ใช้]
+            let mP = line.match(/\b(P|Peak)\b[^\d]*(\d+\.\d+)\s+(\d+\.\d+)\s+(\d+(?:\.\d+)?)/i);
+            if(mP) d.unit_p = parseFloat(mP[4].replace(/,/g, ''));
+
+            let mOP = line.match(/\b(OP|Off\s*Peak)\b[^\d]*(\d+\.\d+)\s+(\d+\.\d+)\s+(\d+(?:\.\d+)?)/i);
+            if(mOP) d.unit_op = parseFloat(mOP[4].replace(/,/g, ''));
+
+            let mH = line.match(/\b(H|Holiday)\b[^\d]*(\d+\.\d+)\s+(\d+\.\d+)\s+(\d+(?:\.\d+)?)/i);
+            if(mH) d.unit_h = parseFloat(mH[4].replace(/,/g, ''));
+        });
+
+        d.unit_total = (d.unit_p + d.unit_op + d.unit_h);
+
+        // ถ้าไม่ใช่ TOU แต่เป็นบิลธรรมดา
+        if(d.unit_total === 0) {
+            let kws = ["จำนวนหน่วย", "รวมหน่วย", "หน่วยที่ใช้", "consumption"];
+            for(let kw of kws) {
+                let idx = noSpace.indexOf(kw);
+                if(idx !== -1) {
+                    let chunk = noSpace.substring(idx + kw.length, idx + kw.length + 20);
+                    let m = chunk.match(/[:=]?([0-9]{1,5}(?:\.[0-9]+)?)/);
+                    if(m && parseFloat(m[1]) > 0) { d.unit_total = parseFloat(m[1]); break; }
+                }
+            }
+        }
+        
+        return d;
+    }
+
+    // =========================================================================
+    // 4. UI INTERACTION
+    // =========================================================================
+    function addVerifyRowToTable(d, filename) {
+        const tbody = document.getElementById('verifyTableBody');
+        const tr = document.createElement('tr');
+        
+        let p = d.unit_p || 0, op = d.unit_op || 0, h = d.unit_h || 0;
+        let tot = d.unit_total || (p + op + h);
+
+        tr.innerHTML = `
+            <td><input type="text" value="${d.name || ''}" title="${filename}"></td>
+            <td><input type="text" value="${d.bill_period || ''}" placeholder="MM/YY"></td>
+            <td><input type="text" value="${d.type || ''}" placeholder="3224"></td>
+            <td><input type="number" class="v-multi" value="${d.multi || 1}" step="0.01"></td>
+            <td><input type="number" class="tou-input v-p" value="${p}" oninput="updateRowTotal(this)"></td>
+            <td><input type="number" class="tou-input v-op" value="${op}" oninput="updateRowTotal(this)"></td>
+            <td><input type="number" class="tou-input v-h" value="${h}" oninput="updateRowTotal(this)"></td>
+            <td><input type="number" class="total-input v-tot" value="${tot}"></td>
+            <td><button style="background:#ef4444; padding: 4px 8px; color:white; border:none; border-radius:3px; cursor:pointer;" onclick="this.parentElement.parentElement.remove()"><i class="fa-solid fa-trash"></i></button></td>
+        `;
+        tbody.appendChild(tr);
+    }
+
+    function updateRowTotal(el) {
+        let tr = el.parentElement.parentElement;
+        let p = parseFloat(tr.querySelector('.v-p').value) || 0;
+        let op = parseFloat(tr.querySelector('.v-op').value) || 0;
+        let h = parseFloat(tr.querySelector('.v-h').value) || 0;
+        
+        // อัปเดต Total อัตโนมัติถ้ามีการแก้ P, OP, H
+        if(p > 0 || op > 0 || h > 0) {
+            tr.querySelector('.v-tot').value = (p + op + h).toFixed(2);
+        }
+    }
+
+    // =========================================================================
+    // 5. SOLAR CALCULATION (อิง Total ของ P+OP+H)
+    // =========================================================================
+    function calculateSolarTOU() {
+        const rows = document.querySelectorAll('#verifyTableBody tr');
+        if(rows.length === 0) return alert("ไม่มีข้อมูลให้คำนวณครับ");
+
+        const psh = parseFloat(document.getElementById('global_psh').value) || 4.3;
+
+        let totalKwhArray = [];
+
+        rows.forEach(row => {
+            let multi = parseFloat(row.querySelector('.v-multi').value) || 1;
+            let rawTot = parseFloat(row.querySelector('.v-tot').value) || 0;
+            let actualUnits = rawTot * multi;
+            
+            if(actualUnits > 0) totalKwhArray.push(actualUnits);
+        });
+
+        if(totalKwhArray.length > 0) {
+            let avg = totalKwhArray.reduce((a,b) => a+b, 0) / totalKwhArray.length;
+            let max = Math.max(...totalKwhArray);
+            
+            let baseMonth = (avg + max) / 2;
+            let daytimeDay = (baseMonth / 30) * 0.65; // ประเมินโหลดกลางวัน 65%
+            let kwp = daytimeDay / psh;
+
+            document.getElementById('solar_evaluation').innerHTML = `
+                <h4 style="color:#1565c0; margin-top:0;"><i class="fa-solid fa-solar-panel"></i> ประเมินกำลังการผลิต (Solar Sizing)</h4>
+                <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:20px;">
+                    <div>
+                        <p><b>เฉลี่ย (Avg):</b> ${avg.toLocaleString(undefined, {maximumFractionDigits:2})} kWh/เดือน</p>
+                        <p><b>สูงสุด (Max):</b> ${max.toLocaleString(undefined, {maximumFractionDigits:2})} kWh/เดือน</p>
+                        <p style="color:#d84315;"><b>ฐานคำนวณ ((Avg+Max)/2):</b> ${baseMonth.toLocaleString(undefined, {maximumFractionDigits:2})} kWh/เดือน</p>
+                    </div>
+                    <div style="background:#e8f5e9; padding:20px; border-radius:8px; text-align:center; min-width:250px; border: 1px solid #4caf50;">
+                        <span style="font-size:14px; color:#2e7d32;">ขนาดติดตั้งที่แนะนำ ไม่ควรเกิน:</span><br>
+                        <span style="font-size:32px; font-weight:bold; color:#1b5e20;">${kwp.toFixed(2)} <span style="font-size:18px;">kWp</span></span>
+                    </div>
+                </div>
+            `;
+            document.getElementById('summary_section').style.display = "block";
+        }
+    }
+</script>
+</body>
+</html>
