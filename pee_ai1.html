@@ -21,7 +21,9 @@
         }
 
         #chat-container {
-            width: 80%;
+            width: 850%;
+            height: 90vh; /* ให้ความสูงเต็มหน้าจอ 100% */
+            box-sizing: border-box; /* ป้องกันไม่ให้ padding ดันจนล้นขอบ */
             max-width: 600px;
             margin: auto;
             background: white;
@@ -29,6 +31,8 @@
             border-radius: 4px;
             padding: 20px;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            display: flex; /* ใช้ Flexbox เพื่อจัดการเลย์เอาต์ภายใน */
+            flex-direction: column;            
         }
 
         #messages {
@@ -45,6 +49,8 @@
             border-radius: 4px;
             background: #2c7aef;
             color: white;
+            white-space: pre-wrap; /* บังคับให้แสดงผลการขึ้นบรรทัดใหม่ตามจริง */
+            word-break: break-word; /* ป้องกันไม่ให้ข้อความยาวๆ หรือโค้ดดันจนทะลุขอบ */
         }
 
         .user-message {
@@ -120,7 +126,14 @@
                 messages.push({ content: message, role: 'user' });
                 // Call the AI chat function
                 puter.ai.chat(messages).then(response => {
+                // กำหนดให้แน่ใจว่าดึง string มาใช้งาน
+                const replyText = typeof response === 'string' ? response : response.message.content;
+
                     addMessage(response, false);
+                    // บันทึกประวัติกลับเข้าไปใน Array ให้ถูกต้อง
+                        if (response.message) {
+                            messages.push(response.message); 
+                        } else {
                     messages.push(response.message);
                 }).catch(error => {
                     console.error("AI response error:", error);
