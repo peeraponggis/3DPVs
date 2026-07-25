@@ -34,18 +34,16 @@
             padding: 10px;
         }
 
-        .message { 
-    /* 5 บรรทัดแรกนี้เป็นของเดิมที่คุณมีอยู่แล้วในไฟล์ */
-    padding: 5px;            /* เว้นพื้นที่ว่างด้านในกล่องข้อความ */
-    margin: 5px 0;           /* เว้นระยะห่างด้านนอกระหว่างกล่องข้อความบน-ล่าง */
-    border-radius: 4px;      /* ทำมุมกล่องข้อความให้โค้งมน */
-    background: #2c7aef;     /* กำหนดสีพื้นหลังของกล่องเป็นสีน้ำเงิน */
-    color: white;            /* กำหนดสีตัวอักษรให้เป็นสีขาว */
+        .message {
+            padding: 5px;
+            margin: 5px 0;
+            border-radius: 4px;
+            background: #2c7aef;
+            color: white;
+            white-space: pre-wrap; 
+            word-break: break-word;
 
-    /* 2 บรรทัดด้านล่างนี้ คือ "สิ่งที่คุณต้องพิมพ์เพิ่มเข้าไป" เพื่อแก้ปัญหาครับ */
-    white-space: pre-wrap; 
-    word-break: break-word; 
-}
+        }
 
         .user-message {
             text-align: right;
@@ -119,24 +117,14 @@
                 // Record the message in array of messages
                 messages.push({ content: message, role: 'user' });
                 // Call the AI chat function
-                pu// เปลี่ยนโค้ดส่วนนี้
-puter.ai.chat(messages).then(response => {
-    // กำหนดให้แน่ใจว่าดึง string มาใช้งาน
-    const replyText = typeof response === 'string' ? response : response.message.content;
-    
-    addMessage(replyText, false);
-    
-    // บันทึกประวัติกลับเข้าไปใน Array ให้ถูกต้อง
-    if (response.message) {
-        messages.push(response.message); 
-    } else {
-        messages.push({ role: 'assistant', content: replyText });
-    }
-}).catch(error => {
-    console.error("AI response error:", error);
-});ter.ai.chat(messages).then(response => {
-
+                puter.ai.chat(messages).then(response => {
+                // กำหนดให้แน่ใจว่าดึง string มาใช้งาน
+                    const replyText = typeof response === 'string' ? response : response.message.content;
                     addMessage(response, false);
+                // บันทึกประวัติกลับเข้าไปใน Array ให้ถูกต้อง
+                    if (response.message) {
+                        messages.push(response.message); 
+                    } else {
                     messages.push(response.message);
                 }).catch(error => {
                     console.error("AI response error:", error);
