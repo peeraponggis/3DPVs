@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Fed Rate Prediction (Single Page)</title>
+<style>
+  :root {
+    --bg:#0b1220;
+    --card:#111a2e;
+    --text:#e8eefc;
+    --muted:#a9b4d0;
+    --accent:#5dd6ff;
+    --danger:#ff5d7a;
+    --ok:#3cff9a;
+  }
+  body{
+    margin:0;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    background: radial-gradient(1000px 500px at 20% 0%, #13244a 0%, var(--bg) 55%);
+    color:var(--text);
+  }
+  .wrap{max-width:1100px; margin:0 auto; padding:20px;}
+  header{
+    display:flex; gap:14px; align-items:flex-start; justify-content:space-between;
+    margin-bottom:14px;
+  }
+  h1{font-size:20px; margin:0; font-weight:700;}
+  .sub{color:var(--muted); font-size:13px; margin-top:4px; line-height:1.35;}
+  .grid{display:grid; grid-template-columns: 1fr 420px; gap:16px;}
+  @media (max-width: 980px){ .grid{grid-template-columns: 1fr; } }
+  .card{
+    background: rgba(17,26,46,.92);
+    border:1px solid rgba(93,214,255,.15);
+    border-radius:16px;
+    padding:16px;
+    box-shadow: 0 10px 40px rgba(0,0,0,.25);
+    overflow:hidden;
+  }
+  label{display:block; font-size:12px; color:var(--muted); margin:10px 0 6px;}
+  textarea, input, select{
+    width:100%;
+    background: rgba(255,255,255,.03);
+    border:1px solid rgba(255,255,255,.08);
+    color:var(--text);
+    border-radius:12px;
+    padding:10px 12px;
+    outline:none;
+    box-sizing:border-box;
+  }
+  textarea{min-height:140px; resize: vertical;}
+  .row{display:grid; grid-template-columns: 1fr 1fr; gap:10px;}
+  @media (max-width: 520px){ .row{grid-template-columns: 1fr;} }
+  .btnbar{display:flex; gap:10px; margin-top:14px; flex-wrap:wrap;}
+  button{
+    cursor:pointer; border:none; border-radius:12px; padding:10px 14px;
+    font-weight:700; color:#061018;
+  }
+  .primary{background:linear-gradient(90deg, var(--accent), #7a5cff);}
+  .ghost{background:rgba(255,255,255,.06); color:var(--text); border:1px solid rgba(255,255,255,.12);}
+  .hint{font-size:12px; color:var(--muted); margin-top:10px; line-height:1.4;}
+  .status{
+    display:flex; gap:10px; align-items:flex-start; padding:12px;
+    border-radius:14px;
+    border:1px solid rgba(255,255,255,.10);
+    background: rgba(255,255,255,.03);
+    margin-top:12px;
+    display:none;
+  }
+  .dot{
+    width:10px; height:10px; border-radius:50%;
+    background: var(--accent);
+    margin-top:4px;
+    box-shadow: 0 0 0 3px rgba(93,214,255,.14);
+    flex:0 0 auto;
+  }
+  .status.show{display:flex;}
+  .status .title{font-weight:800; margin:0; font-size:13px;}
+  .status .msg{margin:4px 0 0; color:var(--muted); font-size:12px; line-height:1.45;}
+  .legend{
+    display:flex; justify-content:space-between; margin-top:10px; gap:12px;
+    color:var(--muted); font-size:12px;
+  }
+  .barwrap{margin-top:12px;}
+  .bar{
+    height:12px; border-radius:999px; background: rgba(255,255,255,.08);
+    position:relative; overflow:hidden; border:1px solid rgba(255,255,255,.08);
+  }
+  .bar > i{
+    position:absolute; left:0; top:0; bottom:0; width:0%;
+    background: linear-gradient(90deg, rgba(93,214,255,.95), rgba(122,92,255,.95));
+    border-radius:999px;
+    transition: width .35s ease;
+  }
+  .bar + .bar{margin-top:10px;}
+  .kv{margin-top:12px; display:grid; gap:8px;}
+  .kv .k{color:var(--muted); font-size:12px;}
+  .kv .v{font-weight:800; font-size:14px;}
+  .sep{height:1px; background: rgba(255,255,255,.08); margin:12px 0;}
+  code{background: rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.10); padding:2px 6px; border-radius:8px;}
+  .footer-note{color:var(--muted); font-size:12px; margin-top:12px; line-height:1.5;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Fed Rate Prediction (Single Page)</h1>
+      <div class="sub">เว็บนี้เรียก <code>POST /api/predict</code> เพื่อทำนายโอกาส: ขึ้น / คง / ลด</div>
+    </div>
+    <div class="sub" style="text-align:right;">
+      เวลา: <span id="clock">—</span>
+    </div>
+  </header>
+
+  <div class="grid">
+    <!-- ซ้าย: อินพุต -->
+    <section class="card">
+      <h2 style="margin:0 0 6px; font-size:16px;">ข้อมูลเข้า (Input)</h2>
+
+      <div class="row">
+        <div>
+          <label for="meeting">การประชุม FOMC</label>
+          <input id="meeting" type="text" placeholder="เช่น 2026-08-xx หรือควอเตอร์หน้า" />
+        </div>
+        <div>
+          <label for="horizon">มองล่วงหน้า</label>
+          <select id="horizon">
+            <option value="7">7 วัน</option>
+            <option value="14">14 วัน</option>
+            <option value="30" selected>30 วัน</option>
+            <option value="60">60 วัน</option>
+            <option value="90">90 วัน</option>
+          </select>
+        </div>
+      </div>
+
+      <label for="news">ข้อความข่าว/ถ้อยแถลง (ใส่แบบย่อก็ได้)</label>
+      <textarea id="news" placeholder="วางข่าว/ถ้อยแถลงที่ดึงมา เช่น แถลงการณ์, คำพูด snippets..."></textarea>
+
+      <div class="row">
+        <div>
+          <label for="cpi">CPI ล่าสุด (ตัวอย่าง)</label>
+          <input id="cpi" type="number" step="0.01" placeholder="เช่น 3.2 (YoY %)" />
+        </div>
+        <div>
+          <label for="pceCore">Core PCE ล่าสุด (ตัวอย่าง)</label>
+          <input id="pceCore" type="number" step="0.01" placeholder="เช่น 2.8 (YoY %)" />
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label for="unemp">อัตราการว่างงาน (ตัวอย่าง)</label>
+          <input id="unemp" type="number" step="0.1" placeholder="เช่น 4.0 (%)" />
+        </div>
+        <div>
+          <label for="wage">รายได้เฉลี่ยต่อชั่วโมง (ตัวอย่าง)</label>
+          <input id="wage" type="number" step="0.1" placeholder="เช่น 4.1 (YoY %)" />
+        </div>
+      </div>
+
+      <div class="btnbar">
+        <button class="primary" id="btnPredict">ทำนาย</button>
+        <button class="ghost" id="btnFillExample">ใส่ตัวอย่าง</button>
+      </div>
+
+      <div class="status" id="statusBox">
+        <div class="dot" id="statusDot"></div>
+        <div>
+          <p class="title" id="statusTitle">กำลังทำงาน…</p>
+          <p class="msg" id="statusMsg">—</p>
+        </div>
+      </div>
+
+      <div class="footer-note">
+        <b>รูปแบบ API ที่ต้องเตรียม:</b><br/>
+        <code>POST /api/predict</code> รับ JSON แบบ
+        <code>{"meeting":"...","horizonDays":30,"news":"...","cpi":3.2,...}</code>
+        และตอบกลับ JSON แบบ
+        <code>{"probUp":0.35,"probHold":0.50,"probCut":0.15,"reason":["..."]}</code>
+      </div>
+    </section>
+
+    <!-- ขวา: ผลลัพธ์ -->
+    <aside class="card">
+      <h2 style="margin:0 0 6px; font-size:16px;">เอาต์พุต (Output)</h2>
+
+      <div class="legend">
+        <span>ขึ้น</span><span>คง</span><span>ลด</span>
+      </div>
+      <div class="barwrap">
+        <div class="bar"><i id="barUp"></i></div>
+        <div class="bar"><i id="barHold" style="background:linear-gradient(90deg, rgba(60,255,154,.95), rgba(93,214,255,.95));"></i></div>
+        <div class="bar"><i id="barCut" style="background:linear-gradient(90deg, rgba(255,93,122,.95), rgba(122,92,255,.95));"></i></div>
+      </div>
+
+      <div class="kv">
+        <div>
+          <div class="k">P(ขึ้น)</div>
+          <div class="v" id="pUp">—</div>
+        </div>
+        <div>
+          <div class="k">P(คง)</div>
+          <div class="v" id="pHold">—</div>
+        </div>
+        <div>
+          <div class="k">P(ลด)</div>
+          <div class="v" id="pCut">—</div>
+        </div>
+      </div>
+
+      <div class="sep"></div>
+      <div class="k">เหตุผล (Reason)</div>
+      <div id="reasons" class="sub" style="margin-top:8px; white-space:pre-wrap;">—</div>
+
+      <div class="sep"></div>
+      <div class="k">API Response (debug)</div>
+      <pre id="debug" style="white-space:pre-wrap; color: var(--muted); margin: 8px 0 0; font-size:12px;">—</pre>
+    </aside>
+  </div>
+</div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+
+  function showStatus(title, msg, tone="info") {
+    $("statusTitle").textContent = title;
+    $("statusMsg").textContent = msg;
+    $("statusBox").classList.add("show");
+    const dot = $("statusDot");
+    dot.style.background = tone === "ok" ? "var(--ok)" : tone === "danger" ? "var(--danger)" : "var(--accent)";
+    dot.style.boxShadow = tone === "ok" ? "0 0 0 3px rgba(60,255,154,.14)" : tone === "danger" ? "0 0 0 3px rgba(255,93,122,.14)" : "0 0 0 3px rgba(93,214,255,.14)";
+  }
+  function hideStatus(){ $("statusBox").classList.remove("show"); }
+
+  function pct(x){
+    if (typeof x !== "number" || !isFinite(x)) return "—";
+    return (x * 100).toFixed(1) + "%";
+  }
+
+  function setBars({probUp, probHold, probCut}){
+    $("barUp").style.width = (probUp * 100).toFixed(1) + "%";
+    $("barHold").style.width = (probHold * 100).toFixed(1) + "%";
+    $("barCut").style.width = (probCut * 100).toFixed(1) + "%";
+  }
+
+  function updateOutput(resp){
+    const {probUp, probHold, probCut, reason} = resp || {};
+    $("pUp").textContent = pct(probUp);
+    $("pHold").textContent = pct(probHold);
+    $("pCut").textContent = pct(probCut);
+    setBars({probUp: probUp ?? 0, probHold: probHold ?? 0, probCut: probCut ?? 0});
+
+    const r = Array.isArray(reason) ? reason.join("\n• ") : (typeof reason === "string" ? reason : "—");
+    $("reasons").textContent = "• " + r.replace(/^•\s?/, "");
+    $("debug").textContent = JSON.stringify(resp, null, 2);
+  }
+
+  async function predict() {
+    hideStatus();
+    showStatus("กำลังดำเนินการ...", "กำลังเรียก API: POST /api/predict", "info");
+
+    const payload = {
+      meeting: $("meeting").value.trim(),
+      horizonDays: Number($("horizon").value),
+      news: $("news").value.trim(),
+      cpi: $("cpi").value === "" ? null : Number($("cpi").value),
+      pceCore: $("pceCore").value === "" ? null : Number($("pceCore").value),
+      unemp: $("unemp").value === "" ? null : Number($("unemp").value),
+      wage: $("wage").value === "" ? null : Number($("wage").value)
+    };
+
+    try {
+      const res = await fetch("/api/predict", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const text = await res.text();
+      let data;
+      try { data = JSON.parse(text); } catch { data = { raw: text }; }
+
+      if (!res.ok) {
+        showStatus("ผิดพลาด", `HTTP ${res.status}: ${text.slice(0, 400)}`, "danger");
+        $("debug").textContent = JSON.stringify({httpStatus: res.status, response: data}, null, 2);
+        return;
+      }
+
+      updateOutput(data);
+      showStatus("สำเร็จ", "ได้รับผลทำนายจาก API แล้ว", "ok");
+    } catch (e){
+      showStatus("เรียก API ไม่สำเร็จ", String(e), "danger");
+    }
+  }
+
+  function fillExample(){
+    $("meeting").value = "FOMC เดือนหน้า (ตัวอย่าง)";
+    $("horizon").value = "30";
+    $("news").value = `ตัวอย่างข้อความ:
+- เงินเฟ้อชะลอตัวลงแต่ยังไม่ต่อเนื่อง
+- ตลาดแรงงานยังตึงตัว
+- Fed อาจจะคงดอกเบี้ยไว้เพื่อรอดูข้อมูลเพิ่มเติม`;
+    $("cpi").value = 3.2;
+    $("pceCore").value = 2.8;
+    $("unemp").value = 4.0;
+    $("wage").value = 4.1;
+    hideStatus();
+  }
+
+  $("btnPredict").addEventListener("click", predict);
+  $("btnFillExample").addEventListener("click", fillExample);
+
+  // นาฬิกา
+  function tick(){
+    const now = new Date();
+    $("clock").textContent = now.toLocaleString("th-TH");
+  }
+  tick();
+  setInterval(tick, 1000);
+</script>
+</body>
+</html>
