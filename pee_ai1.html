@@ -7,6 +7,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Chat App</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <style>
         * {
             box-sizing: border-box;
@@ -48,7 +50,7 @@
             padding: 10px;
             display: flex;
             flex-direction: column;
-            gap: 5px;
+            gap: 8px;
         }
 
         #messages::-webkit-scrollbar {
@@ -70,13 +72,15 @@
         }
 
         .message {
-            padding: 10px 12px;
-            border-radius: 4px;
-            background: #2c7aef;
+            padding: 12px 12px;
+            border-radius: 8px;
             color: white;
-            white-space: pre-wrap; /* บังคับให้แสดงผลการขึ้นบรรทัดใหม่ตามจริง */
-            word-break: break-word; /* ป้องกันไม่ให้ข้อความยาวๆ หรือโค้ดดันจนทะลุขอบ */
+            white-space: pre-wrap;
+            word-break: break-word;
             animation: slideIn 0.3s ease-out;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
         }
 
         @keyframes slideIn {
@@ -90,22 +94,95 @@
             }
         }
 
+        .message-content {
+            flex: 1;
+        }
+
+        .message-actions {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
         .user-message {
-            text-align: right;
-            background: #f9f9f9;
+            background: #e0f7fa;
             color: black;
             margin-left: auto;
             max-width: 70%;
         }
 
-        .user-message .message {
-            background: #e0f7fa;
-            color: black;
+        .ai-message {
+            background: #2c7aef;
+            margin-right: auto;
+            max-width: 85%;
         }
 
-        .ai-message {
+        .error-message {
+            background: #f44336;
+            color: white;
             margin-right: auto;
-            max-width: 70%;
+            max-width: 85%;
+        }
+
+        .ai-message code {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .ai-message pre {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 12px;
+            border-radius: 4px;
+            overflow-x: auto;
+            margin: 8px 0;
+        }
+
+        .ai-message pre code {
+            background: none;
+            padding: 0;
+            color: #fff;
+            font-size: 0.85em;
+            line-height: 1.4;
+        }
+
+        .hljs {
+            background: rgba(0, 0, 0, 0.3) !important;
+            color: #fff !important;
+        }
+
+        .message-btn {
+            background: rgba(255, 255, 255, 0.25);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+            font-weight: 500;
+        }
+
+        .message-btn:hover {
+            background: rgba(255, 255, 255, 0.4);
+            border-color: rgba(255, 255, 255, 0.6);
+        }
+
+        .message-btn:active {
+            transform: scale(0.95);
+        }
+
+        .ai-message .message-btn,
+        .error-message .message-btn {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .ai-message .message-btn:hover,
+        .error-message .message-btn:hover {
+            background: rgba(255, 255, 255, 0.35);
         }
 
         #chat-input {
@@ -136,7 +213,7 @@
             border-radius: 4px;
             cursor: pointer;
             font-weight: bold;
-            transition: background 0.2s;
+            transition: all 0.2s;
         }
 
         #chat-input button:hover {
@@ -147,6 +224,12 @@
             transform: scale(0.98);
         }
 
+        #chat-input button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
         .download-btn {
             background: #28a745 !important;
         }
@@ -155,35 +238,25 @@
             background: #218838 !important;
         }
 
-        .inline-download-btn {
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            border: 1px solid rgba(255, 255, 255, 0.5);
-            border-radius: 4px;
-            padding: 4px 8px;
-            font-size: 12px;
-            cursor: pointer;
-            margin-top: 8px;
-            float: right;
-            transition: background 0.2s;
-        }
-
-        .inline-download-btn:hover {
-            background: rgba(255, 255, 255, 0.4);
-        }
-
-        /* เคลียร์ float เพื่อให้กล่องข้อความครอบคลุมปุ่มพอดี */
-        .message::after {
-            content: "";
-            display: table;
-            clear: both;
-        }
-
         #footer {
             text-align: center;
             color: #666;
             font-size: 12px;
             margin-top: 10px;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
     </style>
     <script src="https://js.puter.com/v2/"></script>
@@ -195,119 +268,242 @@
         <div id="messages"></div>
         <div id="chat-input">
             <input type="text" id="input-message" placeholder="Type a message...">
-            <button onclick="sendMessage()">Send</button>
-            <button onclick="downloadChat()" class="download-btn">Download</button>
+            <button id="send-btn" onclick="sendMessage()">Send</button>
+            <button onclick="downloadChat()" class="download-btn">📥 Download</button>
         </div>
     </div>
     <div id="footer">Created using Puter.JS</div>
 
     <script>
         const messages = [];
-        function addMessage(msg, isUser) {
+        let isLoading = false;
+
+        // ฟังก์ชัน: แทนที่ markdown code blocks ด้วย HTML
+        function parseMarkdownWithCode(text) {
+            const messageDiv = document.createElement("div");
+            messageDiv.className = "message-content";
+            
+            // แบ่งข้อความตามรหัส code blocks
+            const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g;
+            let lastIndex = 0;
+            let match;
+            
+            while ((match = codeBlockRegex.exec(text)) !== null) {
+                // เพิ่มข้อความปกติก่อน code block
+                if (match.index > lastIndex) {
+                    const normalText = document.createElement("span");
+                    normalText.textContent = text.substring(lastIndex, match.index);
+                    messageDiv.appendChild(normalText);
+                }
+                
+                // สร้าง code block
+                const pre = document.createElement("pre");
+                const code = document.createElement("code");
+                const language = match[1] || 'plaintext';
+                const codeContent = match[2].trim();
+                
+                code.className = `language-${language}`;
+                code.textContent = codeContent;
+                pre.appendChild(code);
+                messageDiv.appendChild(pre);
+                
+                // Highlight ด้วย highlight.js
+                hljs.highlightElement(code);
+                
+                lastIndex = match.index + match[0].length;
+            }
+            
+            // เพิ่มข้อความคงเหลือ
+            if (lastIndex < text.length) {
+                const normalText = document.createElement("span");
+                normalText.textContent = text.substring(lastIndex);
+                messageDiv.appendChild(normalText);
+            }
+            
+            // ถ้าไม่มี code block ให้แสดงข้อความปกติ
+            if (!codeBlockRegex.test(text)) {
+                messageDiv.textContent = text;
+            }
+            
+            return messageDiv;
+        }
+
+        function addMessage(msg, isUser, isError = false) {
             const messagesDiv = document.getElementById("messages");
             const messageDiv = document.createElement("div");
             messageDiv.classList.add("message");
             
             if (isUser) {
                 messageDiv.classList.add("user-message");
-                messageDiv.textContent = msg; // ถ้าเป็นผู้ใช้ ให้แสดงข้อความปกติ
+                messageDiv.textContent = msg;
             } else {
-                messageDiv.classList.add("ai-message");
-                // ถ้าเป็น AI ให้สร้างแท็กแยกสำหรับข้อความ
-                const textSpan = document.createElement("span");
-                textSpan.textContent = msg;
-                messageDiv.appendChild(textSpan);
+                messageDiv.classList.add(isError ? "error-message" : "ai-message");
                 
-                // สร้างปุ่มดาวน์โหลดเฉพาะข้อความนี้
+                // สร้าง content area
+                const contentDiv = parseMarkdownWithCode(msg);
+                messageDiv.appendChild(contentDiv);
+                
+                // สร้าง actions area (ปุ่มต่างๆ)
+                const actionsDiv = document.createElement("div");
+                actionsDiv.className = "message-actions";
+                
+                // ปุ่มดาวน์โหลด
                 const downloadBtn = document.createElement("button");
-                downloadBtn.textContent = "⬇️ Download";
-                downloadBtn.classList.add("inline-download-btn");
-                
-                // สั่งให้ดาวน์โหลดข้อความ msg เมื่อกดปุ่ม
+                downloadBtn.textContent = "💾 Save";
+                downloadBtn.className = "message-btn";
                 downloadBtn.onclick = function() {
                     downloadSingleMessage(msg);
                 };
+                actionsDiv.appendChild(downloadBtn);
                 
-                messageDiv.appendChild(downloadBtn);
+                // ปุ่มคัดลอก
+                const copyBtn = document.createElement("button");
+                copyBtn.textContent = "📋 Copy";
+                copyBtn.className = "message-btn";
+                copyBtn.onclick = function() {
+                    navigator.clipboard.writeText(msg).then(() => {
+                        const originalText = copyBtn.textContent;
+                        copyBtn.textContent = "✓ Copied!";
+                        setTimeout(() => {
+                            copyBtn.textContent = originalText;
+                        }, 2000);
+                    });
+                };
+                actionsDiv.appendChild(copyBtn);
+                
+                messageDiv.appendChild(actionsDiv);
             }
             
             messagesDiv.appendChild(messageDiv);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }
 
-        // ฟังก์ชันสำหรับดาวน์โหลดเฉพาะข้อความที่ส่งมา
         function downloadSingleMessage(text) {
-            const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
-            const url = URL.createObjectURL(blob);
-            
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = "ai_response.txt"; // ชื่อไฟล์ที่จะได้
-            
-            document.body.appendChild(a);
-            a.click();
-            
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+            try {
+                const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `ai_response_${new Date().getTime()}.txt`;
+                
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } catch (error) {
+                console.error("Download error:", error);
+                alert("ไม่สามารถดาวน์โหลดได้ครับ");
+            }
         }
 
         function sendMessage() {
             const input = document.getElementById("input-message");
+            const sendBtn = document.getElementById("send-btn");
             const message = input.value.trim();
-            if (message) {
+            
+            if (!message || isLoading) return;
+            
+            try {
+                isLoading = true;
+                sendBtn.disabled = true;
+                sendBtn.innerHTML = '<div class="loading-spinner"></div>';
+                
                 addMessage(message, true);
                 input.value = '';
                 input.focus();
-                // Record the message in array of messages
+                
                 messages.push({ content: message, role: 'user' });
-                // Call the AI chat function
-                puter.ai.chat(messages).then(response => {
-                    addMessage(response, false);
-                    messages.push(response.message);
-                }).catch(error => {
-                    console.error("AI response error:", error);
-                    addMessage("ขออภัยครับ เกิดข้อผิดพลาด: " + error.message, false);
-                });
+                
+                // ส่งข้อความไป AI พร้อม error handling
+                puter.ai.chat(messages)
+                    .then(response => {
+                        try {
+                            if (!response) {
+                                throw new Error("No response from AI");
+                            }
+                            
+                            const aiResponse = typeof response === 'string' ? response : response.message || response;
+                            addMessage(aiResponse, false);
+                            messages.push({ content: aiResponse, role: 'assistant' });
+                        } catch (innerError) {
+                            console.error("Response processing error:", innerError);
+                            const errorMsg = `ข้อผิดพลาดในการประมวลผล: ${innerError.message}`;
+                            addMessage(errorMsg, false, true);
+                        }
+                    })
+                    .catch(error => {
+                        console.error("AI chat error:", error);
+                        
+                        let errorMsg = "เกิดข้อผิดพลาด: ";
+                        if (error.status === 429) {
+                            errorMsg += "ถูกจำกัดอัตรา กรุณาลองใหม่อีกครั้ง";
+                        } else if (error.status === 401) {
+                            errorMsg += "ไม่ได้รับอนุญาต กรุณาเข้าสู่ระบบใหม่";
+                        } else if (error.message) {
+                            errorMsg += error.message;
+                        } else {
+                            errorMsg += "ไม่สามารถเชื่อมต่อกับ AI ได้ครับ";
+                        }
+                        
+                        addMessage(errorMsg, false, true);
+                    })
+                    .finally(() => {
+                        isLoading = false;
+                        sendBtn.disabled = false;
+                        sendBtn.textContent = 'Send';
+                    });
+                    
+            } catch (error) {
+                console.error("Send message error:", error);
+                addMessage("เกิดข้อผิดพลาดขณะส่งข้อความ: " + error.message, false, true);
+                isLoading = false;
+                sendBtn.disabled = false;
+                sendBtn.textContent = 'Send';
             }
         }
 
         function downloadChat() {
-            // ดึงข้อมูลข้อความทั้งหมดที่แสดงอยู่บนหน้าจอ
-            const messagesDiv = document.getElementById("messages");
-            const messageNodes = messagesDiv.querySelectorAll('.message');
-            
-            if (messageNodes.length === 0) {
-                alert("ยังไม่มีข้อความสนทนาให้ดาวน์โหลดครับ");
-                return;
-            }
-
-            // จัดรูปแบบข้อความก่อนบันทึก
-            let chatText = "--- ประวัติการสนทนากับ AI ---\n";
-            chatText += "เวลา: " + new Date().toLocaleString('th-TH') + "\n\n";
-            
-            messageNodes.forEach(node => {
-                // เช็คว่าข้อความนี้เป็นของ User หรือ AI
-                const isUser = node.classList.contains('user-message');
-                const sender = isUser ? "คุณ" : "AI";
+            try {
+                const messagesDiv = document.getElementById("messages");
+                const messageNodes = messagesDiv.querySelectorAll('.message');
                 
-                chatText += `${sender}: ${node.textContent}\n\n`;
-            });
+                if (messageNodes.length === 0) {
+                    alert("ยังไม่มีข้อความสนทนาให้ดาวน์โหลดครับ");
+                    return;
+                }
 
-            // สร้างไฟล์ Blob (ข้อความ) สำหรับดาวน์โหลด
-            const blob = new Blob([chatText], { type: "text/plain;charset=utf-8" });
-            const url = URL.createObjectURL(blob);
-            
-            // สร้างแท็ก <a> จำลองเพื่อสั่งดาวน์โหลดไฟล์
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = "ai_chat_history.txt"; // กำหนดชื่อไฟล์ที่จะบันทึก
-            
-            document.body.appendChild(a);
-            a.click();
-            
-            // คืนค่าหน่วยความจำหลังดาวน์โหลดเสร็จ
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+                let chatText = "--- ประวัติการสนทนากับ AI ---\n";
+                chatText += "เวลา: " + new Date().toLocaleString('th-TH') + "\n";
+                chatText += "=" .repeat(50) + "\n\n";
+                
+                messageNodes.forEach((node, index) => {
+                    const isUser = node.classList.contains('user-message');
+                    const isError = node.classList.contains('error-message');
+                    const sender = isUser ? "👤 คุณ" : isError ? "❌ ข้อผิดพลาด" : "🤖 AI";
+                    
+                    // ดึง text content จาก node โดยใช้ textContent
+                    let content = node.textContent.trim();
+                    
+                    chatText += `${sender}:\n${content}\n\n`;
+                    chatText += "-" .repeat(50) + "\n\n";
+                });
+
+                const blob = new Blob([chatText], { type: "text/plain;charset=utf-8" });
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `ai_chat_${new Date().getTime()}.txt`;
+                
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } catch (error) {
+                console.error("Download chat error:", error);
+                alert("ไม่สามารถดาวน์โหลดได้ครับ: " + error.message);
+            }
         }
 
         // Auto focus input เมื่อโหลดหน้า
@@ -317,7 +513,7 @@
 
         // Enter key ส่งข้อความ
         document.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter' && !e.shiftKey) {
+            if (e.key === 'Enter' && !e.shiftKey && !isLoading) {
                 e.preventDefault();
                 sendMessage();
             }
