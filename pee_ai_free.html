@@ -1,0 +1,463 @@
+<!-- pee_ai_free.html -->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Chat App - Free Edition</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #f0f0f0; flex-direction: column; }
+        
+        #chat-container { width: 100%; max-width: 900px; height: 100vh; max-height: 95vh; margin: auto; background: white; border: 1px solid #ddd; border-radius: 4px; padding: 20px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); display: flex; flex-direction: column; gap: 10px; }
+        
+        /* สไตล์สำหรับแผงตั้งค่า API */
+        #api-settings { background: #f8f9fa; border: 1px solid #e0e0e0; padding: 12px; border-radius: 6px; font-size: 14px; }
+        .provider-options { display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 10px; align-items: center; }
+        .provider-options label { display: flex; align-items: center; gap: 4px; cursor: pointer; font-weight: bold; color: #333; }
+        .key-input-group { display: none; gap: 10px; flex-direction: column; }
+        .key-input-group.show { display: flex; animation: slideIn 0.2s ease-out; }
+        .key-input-group input { padding: 8px; border: 1px solid #ccc; border-radius: 4px; width: 100%; max-width: 400px; font-family: monospace; }
+        .security-note { color: #28a745; font-size: 12px; margin-top: 2px; }
+
+        #messages { flex: 1; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+        #messages::-webkit-scrollbar { width: 8px; }
+        #messages::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+        #messages::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
+        
+        .message { padding: 12px; border-radius: 8px; color: white; white-space: pre-wrap; word-break: break-word; animation: slideIn 0.3s ease-out; display: flex; flex-direction: column; gap: 8px; }
+        
+        @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .message-content { flex: 1; }
+        .message-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+        .message-files { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+        .file-item { background: rgba(255, 255, 255, 0.15); padding: 8px 12px; border-radius: 4px; font-size: 13px; display: flex; align-items: center; gap: 8px; }
+        
+        .user-message { background: #e0f7fa; color: black; margin-left: auto; max-width: 70%; }
+        .ai-message { background: #2c7aef; margin-right: auto; max-width: 85%; }
+        .error-message { background: #f44336; color: white; margin-right: auto; max-width: 85%; }
+        
+        .ai-message code { background: rgba(0, 0, 0, 0.2); padding: 2px 6px; border-radius: 3px; font-family: 'Courier New', monospace; font-size: 0.9em; }
+        .ai-message pre { background: rgba(0, 0, 0, 0.3); padding: 12px; border-radius: 4px; overflow-x: auto; margin: 8px 0; }
+        .hljs { background: rgba(0, 0, 0, 0.3) !important; color: #fff !important; }
+        
+        .message-btn { background: rgba(255, 255, 255, 0.25); color: white; border: 1px solid rgba(255, 255, 255, 0.4); border-radius: 4px; padding: 4px 8px; font-size: 12px; cursor: pointer; transition: all 0.2s; }
+        .message-btn:hover { background: rgba(255, 255, 255, 0.4); }
+        .ai-message .message-btn { background: rgba(255, 255, 255, 0.2); }
+        
+        #input-area { display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; }
+        #file-preview { display: flex; flex-wrap: wrap; gap: 8px; padding: 8px; background: #f5f5f5; border-radius: 4px; border: 1px solid #e0e0e0; max-height: 100px; overflow-y: auto; display: none; }
+        #file-preview.show { display: flex; }
+        .file-tag { background: #2196F3; color: white; padding: 6px 12px; border-radius: 4px; font-size: 12px; display: flex; align-items: center; gap: 6px; }
+        .file-tag .remove-file { cursor: pointer; font-weight: bold; margin-left: 4px; }
+        
+        #chat-input { display: flex; gap: 10px; flex-shrink: 0; align-items: flex-end; }
+        
+        #model-select { padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; background-color: white; cursor: pointer; max-width: 33%; height: 42px; outline: none; }
+        
+        #chat-input textarea { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; font-family: Arial, sans-serif; line-height: 1.5; resize: none; min-height: 42px; max-height: 150px; overflow-y: auto; outline: none; }
+        #chat-input textarea:focus { border-color: #007bff; box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1); }
+        
+        #chat-input button { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 16px; min-width: 45px; height: 42px; transition: all 0.2s; }
+        #chat-input button:disabled { background: #ccc; cursor: not-allowed; }
+        #upload-btn { background: #FF9800 !important; padding: 0 16px !important; color: white !important; font-size: 24px !important; display: flex; align-items: center; justify-content: center; }
+        .download-btn { background: #28a745 !important; }
+        
+        #file-input { display: none; }
+        #footer { text-align: center; color: #666; font-size: 12px; margin-top: 5px; }
+        
+        .loading-spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255, 255, 255, 0.3); border-top-color: white; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-overlay.show { display: flex; }
+        .modal-content { background: white; padding: 25px; border-radius: 8px; max-width: 450px; text-align: center; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
+        .modal-content h3 { margin: 0 0 10px 0; color: #333; }
+        .modal-content a { display: inline-block; background: #17a2b8; color: white; padding: 8px 15px; border-radius: 4px; text-decoration: none; margin: 10px 0; font-weight: bold; }
+        .modal-content button { background: #6c757d; color: white; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; margin-top: 15px; }
+    </style>
+    <script src="https://js.puter.com/v2/"></script>
+</head>
+
+<body>
+    <div id="chat-container">
+        
+        <!-- แผงควบคุมผู้ให้บริการ AI -->
+        <div id="api-settings">
+            <div class="provider-options">
+                <span>🤖 <strong>ระบบประมวลผล:</strong></span>
+                <label><input type="radio" name="ai-provider" value="puter" checked onchange="toggleApiInputs()"> Puter.js (โควต้าเริ่มต้น)</label>
+                <label><input type="radio" name="ai-provider" value="gemini" onchange="toggleApiInputs()"> Gemini</label>
+                <label><input type="radio" name="ai-provider" value="deepseek" onchange="toggleApiInputs()"> DeepSeek</label>
+                <label><input type="radio" name="ai-provider" value="qwen" onchange="toggleApiInputs()"> Qwen (Alibaba)</label>
+                <label><input type="radio" name="ai-provider" value="ainative" onchange="toggleApiInputs()"> AINative Studio</label>
+            </div>
+            
+            <div id="key-inputs" class="key-input-group">
+                <input type="password" id="api-key-input" placeholder="วาง API Key ของคุณที่นี่ (ซ่อนรหัสผ่านอัตโนมัติ)">
+                <div class="security-note">🔒 API Key จะถูกส่งตรงไปยังเซิร์ฟเวอร์ผู้ให้บริการ ไม่ถูกเก็บบันทึกไว้ในเซิร์ฟเวอร์อื่น</div>
+            </div>
+        </div>
+
+        <div id="messages"></div>
+        
+        <div id="input-area">
+            <div id="file-preview"></div>
+            <div id="chat-input">
+                <select id="model-select" title="เลือก AI Model (เฉพาะ Puter)">
+                    <option value="">(ค่าเริ่มต้น)</option>
+                </select>
+                <button id="upload-btn" onclick="triggerFileUpload()" title="อัปโหลดไฟล์ (Max 10)">+</button>
+                <textarea id="input-message" rows="1" placeholder="พิมพ์ข้อความ..."></textarea>
+                <button id="send-btn" onclick="sendMessage()">Send</button>
+                <button onclick="downloadChat()" class="download-btn" title="บันทึกแชท">📥</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="footer">Created using Puter.JS & Custom API Integrations</div>
+
+    <input type="file" id="file-input" multiple accept=".txt,.pdf,.jpg,.png,.jpeg,.csv,.json,.xml,.html,.css,.js,.py,.c,.cpp,.php" onchange="handleFileSelect(event)">
+
+    <!-- Modal แจ้งเตือนทั่วไป และ API Key -->
+    <div id="modal-overlay" class="modal-overlay">
+        <div class="modal-content">
+            <h3 id="modal-title">ข้อความ</h3>
+            <p id="modal-message"></p>
+            <div id="modal-action-link" style="display: none;"></div>
+            <button onclick="closeModal()">รับทราบ / ปิด</button>
+        </div>
+    </div>
+
+    <script>
+        const messages = [];
+        let uploadedFiles = [];
+        let isLoading = false;
+        const MAX_FILES = 10;
+
+        // ข้อมูลตั้งค่าสำหรับแต่ละค่าย
+        const providerConfig = {
+            'gemini': { name: 'Google Gemini', url: 'https://aistudio.google.com/app/apikey', placeholder: 'AIzaSy...' },
+            'deepseek': { name: 'DeepSeek', url: 'https://platform.deepseek.com/api_keys', placeholder: 'sk-...' },
+            'qwen': { name: 'Alibaba Cloud (Qwen)', url: 'https://bailian.console.alibabacloud.com/', placeholder: 'sk-...' },
+            'ainative': { name: 'AINative Studio', url: 'https://ainative.com', placeholder: 'sk-...' }
+        };
+
+        function toggleApiInputs() {
+            const provider = document.querySelector('input[name="ai-provider"]:checked').value;
+            const keyGroup = document.getElementById('key-inputs');
+            const keyInput = document.getElementById('api-key-input');
+            const modelSelect = document.getElementById('model-select');
+            
+            if (provider === 'puter') {
+                keyGroup.classList.remove('show');
+                modelSelect.disabled = false;
+                modelSelect.title = "เลือก AI Model";
+            } else {
+                keyGroup.classList.add('show');
+                keyInput.placeholder = `วาง API Key ของ ${providerConfig[provider].name} (${providerConfig[provider].placeholder})`;
+                modelSelect.disabled = true;
+                modelSelect.title = `ตัวเลือกนี้ใช้ได้เฉพาะกับ Puter.js (ระบบตั้งค่าโมเดลของ ${providerConfig[provider].name} อัตโนมัติ)`;
+            }
+        }
+
+        // ==========================================
+        // ฟังก์ชันเชื่อมต่อ API โดยตรง (API Adapters)
+        // ==========================================
+
+        async function fetchGemini(apiKey, chatHistory) {
+            // โครงสร้างของ Gemini: { role: "user"/"model", parts: [{ text: "..." }] }
+            const geminiMessages = chatHistory.map(msg => ({
+                role: msg.role === 'assistant' ? 'model' : 'user',
+                parts: [{ text: msg.content }]
+            }));
+
+            // ใช้โมเดล gemini-1.5-flash ที่ฟรีและเร็ว
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+            
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: geminiMessages })
+            });
+
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.error?.message || "เกิดข้อผิดพลาดในการเชื่อมต่อ Google Gemini");
+            }
+
+            const data = await response.json();
+            return data.candidates[0].content.parts[0].text;
+        }
+
+        async function fetchOpenAICompatible(url, apiKey, modelName, chatHistory) {
+            // โครงสร้างมาตรฐาน (DeepSeek, Qwen, AINative ใช้รูปแบบนี้)
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify({
+                    model: modelName,
+                    messages: chatHistory
+                })
+            });
+
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.error?.message || err.message || "เกิดข้อผิดพลาดในการเชื่อมต่อ API");
+            }
+
+            const data = await response.json();
+            return data.choices[0].message.content;
+        }
+
+        async function callDirectAPI(provider, apiKey, chatHistory) {
+            if (provider === 'gemini') {
+                return await fetchGemini(apiKey, chatHistory);
+            } 
+            else if (provider === 'deepseek') {
+                return await fetchOpenAICompatible(
+                    'https://api.deepseek.com/chat/completions',
+                    apiKey,
+                    'deepseek-chat', // ใช้เวอร์ชั่นล่าสุด
+                    chatHistory
+                );
+            }
+            else if (provider === 'qwen') {
+                return await fetchOpenAICompatible(
+                    'https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions',
+                    apiKey,
+                    'qwen-plus',
+                    chatHistory
+                );
+            }
+            else if (provider === 'ainative') {
+                // สมมติฐาน Endpoint ของ AINative Studio
+                return await fetchOpenAICompatible(
+                    'https://api.ainative.com/v1/chat/completions', 
+                    apiKey,
+                    'default', 
+                    chatHistory
+                );
+            }
+            throw new Error("ไม่พบผู้ให้บริการที่เลือกระบบนี้");
+        }
+
+        // ==========================================
+        // UI & Chat Logic
+        // ==========================================
+
+        function showApiErrorModal(provider) {
+            const config = providerConfig[provider];
+            const linkDiv = document.getElementById('modal-action-link');
+            
+            document.getElementById('modal-title').textContent = `⚠️ ต้องการ API Key`;
+            document.getElementById('modal-message').textContent = `คุณยังไม่ได้ใส่ API Key สำหรับ ${config.name} กรุณาสมัครเพื่อรับรหัสผ่านฟรี (คลิกปุ่มด้านล่าง) แล้วนำมาวางในช่องตั้งค่าครับ`;
+            
+            linkDiv.innerHTML = `<a href="${config.url}" target="_blank">👉 สมัครรับ API Key ฟรีที่นี่</a>`;
+            linkDiv.style.display = 'block';
+            
+            document.getElementById('modal-overlay').classList.add('show');
+        }
+
+        function showModal(title, message) {
+            document.getElementById('modal-title').textContent = title;
+            document.getElementById('modal-message').textContent = message;
+            document.getElementById('modal-action-link').style.display = 'none';
+            document.getElementById('modal-overlay').classList.add('show');
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('show');
+        }
+
+        // ... (โค้ดจัดการไฟล์ getFileIcon, triggerFileUpload, handleFileSelect, updateFilePreview, removeFile คงเดิม) ...
+        function getFileIcon(fileName) { const ext = fileName.split('.').pop().toLowerCase(); return '📎'; } // ย่อส่วนเพื่อความกระชับ
+        function triggerFileUpload() { document.getElementById('file-input').click(); }
+        function handleFileSelect(event) {
+            const files = Array.from(event.target.files);
+            for (const file of files) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    uploadedFiles.push({ name: file.name, content: e.target.result, size: file.size });
+                    updateFilePreview();
+                };
+                reader.readAsText(file);
+            }
+            event.target.value = '';
+        }
+        function updateFilePreview() {
+            const preview = document.getElementById('file-preview');
+            preview.innerHTML = '';
+            if (uploadedFiles.length === 0) { preview.classList.remove('show'); return; }
+            preview.classList.add('show');
+            uploadedFiles.forEach((file, index) => {
+                const tag = document.createElement('div'); tag.className = 'file-tag';
+                tag.innerHTML = `<span>${file.name}</span><span class="remove-file" onclick="removeFile(${index})">×</span>`;
+                preview.appendChild(tag);
+            });
+        }
+        function removeFile(index) { uploadedFiles.splice(index, 1); updateFilePreview(); }
+        
+        function parseMarkdownWithCode(text) {
+            const messageDiv = document.createElement("div");
+            messageDiv.className = "message-content";
+            const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g;
+            let lastIndex = 0, match;
+            while ((match = codeBlockRegex.exec(text)) !== null) {
+                if (match.index > lastIndex) {
+                    const normalText = document.createElement("span");
+                    normalText.textContent = text.substring(lastIndex, match.index);
+                    messageDiv.appendChild(normalText);
+                }
+                const pre = document.createElement("pre");
+                const code = document.createElement("code");
+                code.className = `language-${match[1] || 'plaintext'}`;
+                code.textContent = match[2].trim();
+                pre.appendChild(code); messageDiv.appendChild(pre);
+                hljs.highlightElement(code);
+                lastIndex = match.index + match[0].length;
+            }
+            if (lastIndex < text.length) {
+                const normalText = document.createElement("span");
+                normalText.textContent = text.substring(lastIndex);
+                messageDiv.appendChild(normalText);
+            }
+            if (!codeBlockRegex.test(text)) { messageDiv.textContent = text; }
+            return messageDiv;
+        }
+
+        function addMessage(msg, isUser, isError = false) {
+            const messagesDiv = document.getElementById("messages");
+            const messageDiv = document.createElement("div");
+            messageDiv.classList.add("message", isUser ? "user-message" : (isError ? "error-message" : "ai-message"));
+            
+            if (isUser) {
+                messageDiv.textContent = msg;
+            } else {
+                messageDiv.appendChild(parseMarkdownWithCode(msg));
+            }
+            
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function buildFileInfoText() {
+            if (uploadedFiles.length === 0) return "";
+            let fileInfo = "\n\n📎 ข้อมูลจากไฟล์ที่แนบ:\n";
+            uploadedFiles.forEach(file => {
+                fileInfo += `\n--- เริ่มต้นเนื้อหาไฟล์: ${file.name} ---\n${file.content}\n--- สิ้นสุดเนื้อหาไฟล์: ${file.name} ---\n`;
+            });
+            return fileInfo;
+        }
+
+        // เปลี่ยน sendMessage เป็น async/await เพื่อจัดการ API หลายค่ายให้เป็นระเบียบ
+        async function sendMessage() {
+            const input = document.getElementById("input-message");
+            const sendBtn = document.getElementById("send-btn");
+            const message = input.value.trim();
+            
+            if (!message && uploadedFiles.length === 0 || isLoading) return;
+            
+            isLoading = true;
+            sendBtn.disabled = true;
+            sendBtn.innerHTML = '<div class="loading-spinner"></div>';
+            
+            addMessage(message || "(ส่งไฟล์แนบ)", true);
+            
+            let userMessage = message;
+            if (uploadedFiles.length > 0) userMessage += buildFileInfoText();
+            
+            messages.push({ role: 'user', content: userMessage });
+            
+            input.value = '';
+            input.style.height = 'auto'; // คืนความสูงให้ Textarea
+            input.focus();
+            
+            uploadedFiles = [];
+            updateFilePreview();
+
+            try {
+                const provider = document.querySelector('input[name="ai-provider"]:checked').value;
+                let aiResponseText = "";
+
+                if (provider === 'puter') {
+                    // ใช้ Puter API
+                    const selectedModel = document.getElementById("model-select").value;
+                    const chatOptions = selectedModel ? { model: selectedModel } : undefined;
+                    
+                    const response = await puter.ai.chat(messages, chatOptions);
+                    
+                    // แปลงค่ากลับมาให้เป็น String 
+                    if (typeof response === 'string') aiResponseText = response;
+                    else if (response && response.message && response.message.content) aiResponseText = response.message.content;
+                    else aiResponseText = JSON.stringify(response);
+
+                } else {
+                    // ใช้ Custom API โดยตรง
+                    const apiKey = document.getElementById("api-key-input").value.trim();
+                    if (!apiKey) {
+                        showApiErrorModal(provider);
+                        // ลบข้อความที่ส่งไปในประวัติแชทออก เพราะส่งไม่สำเร็จ
+                        messages.pop(); 
+                        throw new Error("WAIT_FOR_KEY");
+                    }
+                    
+                    aiResponseText = await callDirectAPI(provider, apiKey, messages);
+                }
+                
+                addMessage(aiResponseText, false);
+                messages.push({ role: 'assistant', content: aiResponseText });
+
+            } catch (error) {
+                if (error.message !== "WAIT_FOR_KEY") {
+                    console.error("Chat error:", error);
+                    let errorMsg = `ข้อผิดพลาด: ${error.message}`;
+                    if (error.status === 402 || error.message.includes("Balance")) {
+                        errorMsg = "โควต้า Puter หมดแล้ว! กรุณาสลับไปใช้ API ของค่ายอื่นด้านบนแทนครับ";
+                    }
+                    addMessage(errorMsg, false, true);
+                }
+            } finally {
+                isLoading = false;
+                sendBtn.disabled = false;
+                sendBtn.textContent = 'Send';
+            }
+        }
+
+        async function loadModels() {
+            try {
+                const allModels = await puter.ai.listModels();
+                const supportedChatModels = allModels.filter(model => {
+                    const mId = (model.id || model.name).toLowerCase();
+                    return !(mId.includes('dall-e') || mId.includes('flux') || mId.includes('tts') || mId.includes('whisper'));
+                });
+                const select = document.getElementById('model-select');
+                supportedChatModels.forEach(model => {
+                    const option = document.createElement('option');
+                    option.value = model.id || model.name; 
+                    option.textContent = `${model.name} ${model.provider ? '['+model.provider+']' : ''}`;
+                    select.appendChild(option);
+                });
+            } catch (e) { console.error("โหลดโมเดล Puter ไม่สำเร็จ:", e); }
+        }
+
+        window.addEventListener('load', function() {
+            const inputField = document.getElementById("input-message");
+            inputField.focus();
+            loadModels(); 
+            
+            inputField.addEventListener('input', function() {
+                this.style.height = 'auto'; 
+                this.style.height = (this.scrollHeight) + 'px'; 
+            });
+        });
+    </script>
+</body>
+</html>
