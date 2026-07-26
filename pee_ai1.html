@@ -426,7 +426,7 @@
             </div>
         </div>
     </div>
-    <div id="footer">Created using Puter.JS Powered by <a href="--" target="_blank">PROINVENTIVE</a></div>
+    <div id="footer">Created using Puter.JS Powered by <a href="https://proinventive.com" target="_blank">PROINVENTIVE</a></div>
 
     <input type="file" id="file-input" multiple accept=".txt,.pdf,.jpg,.png,.jpeg,.gif,.csv,.json,.xml,.html,.css,.js,.py,.java,.cpp,.c,.php" onchange="handleFileSelect(event)">
 
@@ -731,17 +731,21 @@
                 input.value = '';
                 input.focus();
                 
-                // เตรียมข้อความสำหรับส่ง AI - เป็น string ธรรมดา
+                // เตรียมข้อความสำหรับส่ง AI - ในรูปแบบ array ของ content objects
                 let userMessage = message;
                 if (uploadedFiles.length > 0) {
                     userMessage += buildFileInfoText();
                 }
                 
-                // ส่งข้อความในรูปแบบ simple string (เพิ่มตัวถูกต้อง)
+                // ส่งข้อความในรูปแบบ content array ตามตัว API ที่ต้องการ
                 messages.push({ 
                     role: 'user', 
-                    content: userMessage 
+                    content: [
+                        { type: 'text', text: userMessage }
+                    ]
                 });
+                
+                console.log("Sending message:", JSON.stringify(messages[messages.length - 1]));
                 
                 // ส่งข้อความไป AI พร้อม error handling
                 puter.ai.chat(messages)
@@ -755,10 +759,12 @@
                             const aiResponse = extractResponseContent(response);
                             addMessage(aiResponse, false);
                             
-                            // บันทึกลงใน messages array ในรูปแบบเดียวกัน (string)
+                            // บันทึกลงใน messages array ในรูปแบบ content array
                             messages.push({ 
                                 role: 'assistant', 
-                                content: aiResponse 
+                                content: [
+                                    { type: 'text', text: aiResponse }
+                                ]
                             });
                             
                             // ล้างไฟล์หลังส่งเสร็จ
@@ -779,7 +785,7 @@
                         } else if (error.status === 401) {
                             errorMsg += "ไม่ได้รับอนุญาต กรุณาเข้าสู่ระบบใหม่";
                         } else if (error.status === 400) {
-                            errorMsg += "ข้อมูลที่ส่งไม่ถูกต้อง - ตรวจสอบ message format";
+                            errorMsg += "ข้อมูลที่ส่งไม่ถูกต้อง - " + (error.message || "ลองใหม่");
                         } else if (error.message) {
                             errorMsg += error.message;
                         } else {
