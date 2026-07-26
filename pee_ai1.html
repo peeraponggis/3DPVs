@@ -491,7 +491,7 @@
             const remainingSlots = MAX_FILES - uploadedFiles.length;
 
             if (files.length > remainingSlots) {
-                showModal('เกินจำนวนไฟล์', `คุณเลือกไฟล์ ${files.length} ไฟล์ แต่สามารถอัปโหล���ได้เพียง ${remainingSlots} ไฟล์`);
+                showModal('เกินจำนวนไฟล์', `คุณเลือกไฟล์ ${files.length} ไฟล์ แต่สามารถอัปโหลดได้เพียง ${remainingSlots} ไฟล์`);
                 event.target.value = '';
                 return;
             }
@@ -679,17 +679,14 @@
             }
         }
 
-        function buildMessageWithFiles(text, files) {
-            let content = text;
+        function buildFileInfoText() {
+            if (uploadedFiles.length === 0) return "";
             
-            if (files && files.length > 0) {
-                content += "\n\n[ไฟล์ที่แนบ]:\n";
-                files.forEach(file => {
-                    content += `- ${file.name} (${Math.round(file.size / 1024)}KB)\n`;
-                });
-            }
-            
-            return content;
+            let fileInfo = "\n\n📎 ไฟล์ที่แนบ:\n";
+            uploadedFiles.forEach(file => {
+                fileInfo += `- ${file.name} (${Math.round(file.size / 1024)}KB)\n`;
+            });
+            return fileInfo;
         }
 
         function sendMessage() {
@@ -709,9 +706,17 @@
                 input.value = '';
                 input.focus();
                 
-                // เตรียมข้อมูลส่ง AI
-                let userContent = buildMessageWithFiles(message, uploadedFiles);
-                messages.push({ content: userContent, role: 'user' });
+                // เตรียมข้อความสำหรับส่ง AI - ไม่รวม file content เพราะ API ไม่รองรับ
+                let userMessage = message;
+                if (uploadedFiles.length > 0) {
+                    userMessage += buildFileInfoText();
+                }
+                
+                // ส่งข้อความเป็นสตริงธรรมดา (ตามรูปแบบของ Puter.ai.chat API)
+                messages.push({ 
+                    role: 'user', 
+                    content: userMessage 
+                });
                 
                 // ส่งข้อความไป AI พร้อม error handling
                 puter.ai.chat(messages)
@@ -721,9 +726,12 @@
                                 throw new Error("No response from AI");
                             }
                             
-                            const aiResponse = typeof response === 'string' ? response : response.message || response;
+                            const aiResponse = typeof response === 'string' ? response : response.message || JSON.stringify(response);
                             addMessage(aiResponse, false);
-                            messages.push({ content: aiResponse, role: 'assistant' });
+                            messages.push({ 
+                                role: 'assistant', 
+                                content: aiResponse 
+                            });
                             
                             // ล้างไฟล์หลังส่งเสร็จ
                             uploadedFiles = [];
@@ -742,6 +750,8 @@
                             errorMsg += "ถูกจำกัดอัตรา กรุณาลองใหม่อีกครั้ง";
                         } else if (error.status === 401) {
                             errorMsg += "ไม่ได้รับอนุญาต กรุณาเข้าสู่ระบบใหม่";
+                        } else if (error.status === 400) {
+                            errorMsg += "ข้อมูลที่ส่งไม่ถูกต้อง กรุณาลองใหม่";
                         } else if (error.message) {
                             errorMsg += error.message;
                         } else {
