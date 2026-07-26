@@ -1,0 +1,978 @@
+<!-- Try a complete AI chat app built with Puter.js. Run, edit, and experiment with this working example in the playground. -->
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Chat App</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <style>
+		#model-select {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            background-color: white;
+            cursor: pointer;
+            outline: none;
+			/* เพิ่ม 4 บรรทัดนี้เพื่อจำกัดขนาด */
+            max-width: 33%;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+        
+        #model-select:focus {
+            border-color: #007bff;
+            box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1);
+        }
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+            flex-direction: column;
+        }
+
+        #chat-container {
+            width: 100%;
+            max-width: 900px;
+            height: 100vh;
+            max-height: 90vh;
+            margin: auto;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        #messages {
+            flex: 1;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        #messages::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        #messages::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+
+        #messages::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+
+        #messages::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        .message {
+            padding: 12px 12px;
+            border-radius: 8px;
+            color: white;
+            white-space: pre-wrap;
+            word-break: break-word;
+            animation: slideIn 0.3s ease-out;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message-content {
+            flex: 1;
+        }
+
+        .message-actions {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .message-files {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 8px;
+        }
+
+        .file-item {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            word-break: break-all;
+        }
+
+        .file-icon {
+            font-size: 16px;
+            min-width: 20px;
+        }
+
+        .user-message {
+            background: #e0f7fa;
+            color: black;
+            margin-left: auto;
+            max-width: 70%;
+        }
+
+        .ai-message {
+            background: #2c7aef;
+            margin-right: auto;
+            max-width: 85%;
+        }
+
+        .error-message {
+            background: #f44336;
+            color: white;
+            margin-right: auto;
+            max-width: 85%;
+        }
+
+        .ai-message code {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .ai-message pre {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 12px;
+            border-radius: 4px;
+            overflow-x: auto;
+            margin: 8px 0;
+        }
+
+        .ai-message pre code {
+            background: none;
+            padding: 0;
+            color: #fff;
+            font-size: 0.85em;
+            line-height: 1.4;
+        }
+
+        .hljs {
+            background: rgba(0, 0, 0, 0.3) !important;
+            color: #fff !important;
+        }
+
+        .message-btn {
+            background: rgba(255, 255, 255, 0.25);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+            font-weight: 500;
+        }
+
+        .message-btn:hover {
+            background: rgba(255, 255, 255, 0.4);
+            border-color: rgba(255, 255, 255, 0.6);
+        }
+
+        .message-btn:active {
+            transform: scale(0.95);
+        }
+
+        .ai-message .message-btn,
+        .error-message .message-btn {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .ai-message .message-btn:hover,
+        .error-message .message-btn:hover {
+            background: rgba(255, 255, 255, 0.35);
+        }
+
+        #input-area {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        #file-preview {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 8px;
+            background: #f5f5f5;
+            border-radius: 4px;
+            border: 1px solid #e0e0e0;
+            max-height: 100px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        #file-preview.show {
+            display: flex;
+        }
+
+        .file-tag {
+            background: #2196F3;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .file-tag .remove-file {
+            cursor: pointer;
+            font-weight: bold;
+            margin-left: 4px;
+        }
+
+        .file-tag .remove-file:hover {
+            opacity: 0.7;
+        }
+
+        #chat-input {
+            display: flex;
+            gap: 10px;
+            flex-shrink: 0;
+            /* เพิ่มบรรทัดนี้ */
+            align-items: flex-end; 
+        }
+
+        #chat-input textarea {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: Arial, sans-serif;
+            line-height: 1.5;
+            resize: none; /* ป้องกันผู้ใช้ลากขยายกล่องเอง */
+            min-height: 42px; /* ความสูง 1 บรรทัด */
+            max-height: 150px; /* ความสูงสูงสุดก่อนจะขึ้น Scrollbar */
+            overflow-y: auto;
+        }
+
+        #chat-input textarea:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1);
+        }
+
+        #chat-input button {
+            padding: 10px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+            font-size: 16px;
+            min-width: 45px;
+			/* เพิ่ม 1 บรรทัดนี้ เพื่อล็อคความสูงปุ่ม */
+            height: 42px;
+        }
+
+        #chat-input button:hover {
+            background: #0056b3;
+        }
+
+        #chat-input button:active {
+            transform: scale(0.98);
+        }
+
+        #chat-input button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        #upload-btn {
+            background: #FF9800;
+            padding: 10px 16px;
+			/* เพิ่ม 4 บรรทัดนี้ เพื่อจัดระเบียบเครื่องหมาย + */
+            color: white; 
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #upload-btn:hover {
+            background: #F57C00;
+        }
+
+        #upload-btn.max-files {
+            background: #ccc;
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        .download-btn {
+            background: #28a745 !important;
+        }
+
+        .download-btn:hover {
+            background: #218838 !important;
+        }
+
+        #file-input {
+            display: none;
+        }
+
+        #footer {
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+
+        #footer a {
+            color: #007bff;
+            text-decoration: none;
+        }
+
+        #footer a:hover {
+            text-decoration: underline;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .modal-content h3 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+
+        .modal-content p {
+            margin: 10px 0;
+            color: #666;
+        }
+
+        .modal-content button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+
+        .modal-content button:hover {
+            background: #0056b3;
+        }
+    </style>
+    <script src="https://js.puter.com/v2/"></script>
+
+</head>
+
+<body>
+    <div id="chat-container">
+        <div id="messages"></div>
+        <div id="input-area">
+            <div id="file-preview"></div>
+            <div id="chat-input">
+                <select id="model-select" title="เลือก AI Model">
+                    <option value="">ค่าเริ่มต้น (Default)</option>
+                </select>
+                
+                <!-- เปลี่ยนจาก ➕ เป็น + ตัวอักษรปกติ -->
+                <button id="upload-btn" onclick="triggerFileUpload()" title="Upload files (Max 10)">+</button>
+                
+                <!-- เปลี่ยน input เป็น textarea เพื่อให้รองรับหลายบรรทัด -->
+                <textarea id="input-message" rows="1" placeholder="Type a message..."></textarea>
+                
+                <button id="send-btn" onclick="sendMessage()">Send</button>
+                <button onclick="downloadChat()" class="download-btn">📥</button>
+            </div>
+        </div>
+    </div>
+    <div id="footer">Created using Puter.JS Powered by <a href="https://proinventive.com" target="_blank">PROINVENTIVE</a></div>
+
+    <input type="file" id="file-input" multiple accept=".txt,.pdf,.jpg,.png,.jpeg,.gif,.csv,.json,.xml,.html,.css,.js,.py,.java,.cpp,.c,.php" onchange="handleFileSelect(event)">
+
+    <div id="modal-overlay" class="modal-overlay">
+        <div class="modal-content">
+            <h3 id="modal-title">ข้อความ</h3>
+            <p id="modal-message"></p>
+            <button onclick="closeModal()">ปิด</button>
+        </div>
+    </div>
+
+    <script>
+        const messages = [];
+        let uploadedFiles = [];
+        let isLoading = false;
+        const MAX_FILES = 10;
+
+        function getFileIcon(fileName) {
+            const ext = fileName.split('.').pop().toLowerCase();
+            const icons = {
+                'pdf': '📄',
+                'txt': '📝',
+                'jpg': '🖼️',
+                'jpeg': '🖼️',
+                'png': '🖼️',
+                'gif': '🖼️',
+                'csv': '📊',
+                'json': '{}',
+                'xml': '🔖',
+                'html': '🌐',
+                'css': '🎨',
+                'js': '⚙️',
+                'py': '🐍',
+                'java': '☕',
+                'cpp': '⚡',
+                'c': '⚡',
+                'php': '🐘'
+            };
+            return icons[ext] || '📎';
+        }
+
+        function showModal(title, message) {
+            document.getElementById('modal-title').textContent = title;
+            document.getElementById('modal-message').textContent = message;
+            document.getElementById('modal-overlay').classList.add('show');
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('show');
+        }
+
+        function triggerFileUpload() {
+            if (uploadedFiles.length >= MAX_FILES) {
+                showModal('ไฟล์เต็มแล้ว', `คุณสามารถอัปโหลดได้ไม่เกิน ${MAX_FILES} ไฟล์เท่านั้น`);
+                return;
+            }
+            document.getElementById('file-input').click();
+        }
+
+        function handleFileSelect(event) {
+            const files = Array.from(event.target.files);
+            const remainingSlots = MAX_FILES - uploadedFiles.length;
+
+            if (files.length > remainingSlots) {
+                showModal('เกินจำนวนไฟล์', `คุณเลือกไฟล์ ${files.length} ไฟล์ แต่สามารถอัปโหลดได้เพียง ${remainingSlots} ไฟล์`);
+                event.target.value = '';
+                return;
+            }
+
+            for (const file of files) {
+                // ตรวจสอบขนาดไฟล์ (10MB ต่อไฟล์)
+                if (file.size > 10 * 1024 * 1024) {
+                    showModal('ไฟล์ใหญ่เกินไป', `${file.name} มีขนาดเกิน 10MB`);
+                    continue;
+                }
+
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    uploadedFiles.push({
+                        name: file.name,
+                        content: e.target.result,
+                        size: file.size
+                    });
+                    updateFilePreview();
+                };
+                reader.readAsText(file);
+            }
+
+            event.target.value = '';
+        }
+
+        function updateFilePreview() {
+            const preview = document.getElementById('file-preview');
+            preview.innerHTML = '';
+
+            if (uploadedFiles.length === 0) {
+                preview.classList.remove('show');
+                return;
+            }
+
+            preview.classList.add('show');
+            uploadedFiles.forEach((file, index) => {
+                const tag = document.createElement('div');
+                tag.className = 'file-tag';
+                tag.innerHTML = `
+                    ${getFileIcon(file.name)} <span>${file.name}</span>
+                    <span class="remove-file" onclick="removeFile(${index})">×</span>
+                `;
+                preview.appendChild(tag);
+            });
+
+            // อัปเดตสถานะปุ่ม upload
+            const uploadBtn = document.getElementById('upload-btn');
+            if (uploadedFiles.length >= MAX_FILES) {
+                uploadBtn.classList.add('max-files');
+                uploadBtn.title = `ถึงขีดจำกัด (${MAX_FILES}/${MAX_FILES})`;
+            } else {
+                uploadBtn.classList.remove('max-files');
+                uploadBtn.title = `Upload files (${uploadedFiles.length}/${MAX_FILES})`;
+            }
+        }
+
+        function removeFile(index) {
+            uploadedFiles.splice(index, 1);
+            updateFilePreview();
+        }
+
+        // ฟังก์ชัน: แทนที่ markdown code blocks ด้วย HTML
+        function parseMarkdownWithCode(text) {
+            const messageDiv = document.createElement("div");
+            messageDiv.className = "message-content";
+            
+            const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g;
+            let lastIndex = 0;
+            let match;
+            
+            while ((match = codeBlockRegex.exec(text)) !== null) {
+                if (match.index > lastIndex) {
+                    const normalText = document.createElement("span");
+                    normalText.textContent = text.substring(lastIndex, match.index);
+                    messageDiv.appendChild(normalText);
+                }
+                
+                const pre = document.createElement("pre");
+                const code = document.createElement("code");
+                const language = match[1] || 'plaintext';
+                const codeContent = match[2].trim();
+                
+                code.className = `language-${language}`;
+                code.textContent = codeContent;
+                pre.appendChild(code);
+                messageDiv.appendChild(pre);
+                
+                hljs.highlightElement(code);
+                
+                lastIndex = match.index + match[0].length;
+            }
+            
+            if (lastIndex < text.length) {
+                const normalText = document.createElement("span");
+                normalText.textContent = text.substring(lastIndex);
+                messageDiv.appendChild(normalText);
+            }
+            
+            if (!codeBlockRegex.test(text)) {
+                messageDiv.textContent = text;
+            }
+            
+            return messageDiv;
+        }
+
+        function addMessage(msg, isUser, isError = false, files = null) {
+            const messagesDiv = document.getElementById("messages");
+            const messageDiv = document.createElement("div");
+            messageDiv.classList.add("message");
+            
+            if (isUser) {
+                messageDiv.classList.add("user-message");
+                
+                // แสดงไฟล์ถ้ามี
+                if (files && files.length > 0) {
+                    const filesDiv = document.createElement("div");
+                    filesDiv.className = "message-files";
+                    files.forEach(file => {
+                        const fileItem = document.createElement("div");
+                        fileItem.className = "file-item";
+                        fileItem.innerHTML = `${getFileIcon(file.name)} ${file.name}`;
+                        filesDiv.appendChild(fileItem);
+                    });
+                    messageDiv.appendChild(filesDiv);
+                }
+                
+                const textDiv = document.createElement("div");
+                textDiv.textContent = msg;
+                messageDiv.appendChild(textDiv);
+            } else {
+                messageDiv.classList.add(isError ? "error-message" : "ai-message");
+                
+                const contentDiv = parseMarkdownWithCode(msg);
+                messageDiv.appendChild(contentDiv);
+                
+                const actionsDiv = document.createElement("div");
+                actionsDiv.className = "message-actions";
+                
+                const downloadBtn = document.createElement("button");
+                downloadBtn.textContent = "💾 Save";
+                downloadBtn.className = "message-btn";
+                downloadBtn.onclick = function() {
+                    downloadSingleMessage(msg);
+                };
+                actionsDiv.appendChild(downloadBtn);
+                
+                const copyBtn = document.createElement("button");
+                copyBtn.textContent = "📋 Copy";
+                copyBtn.className = "message-btn";
+                copyBtn.onclick = function() {
+                    navigator.clipboard.writeText(msg).then(() => {
+                        const originalText = copyBtn.textContent;
+                        copyBtn.textContent = "✓ Copied!";
+                        setTimeout(() => {
+                            copyBtn.textContent = originalText;
+                        }, 2000);
+                    });
+                };
+                actionsDiv.appendChild(copyBtn);
+                
+                messageDiv.appendChild(actionsDiv);
+            }
+            
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function downloadSingleMessage(text) {
+            try {
+                const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `ai_response_${new Date().getTime()}.txt`;
+                
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } catch (error) {
+                console.error("Download error:", error);
+                showModal('ข้อผิดพลาด', 'ไม่สามารถดาวน์โหลดได้');
+            }
+        }
+
+        function buildFileInfoText() {
+            if (uploadedFiles.length === 0) return "";
+            
+            let fileInfo = "\n\n📎 ข้อมูลจากไฟล์ที่แนบ:\n";
+            uploadedFiles.forEach(file => {
+                // ระบุชื่อไฟล์และดึงเนื้อหา (content) ส่งให้ AI
+                fileInfo += `\n--- เริ่มต้นเนื้อหาไฟล์: ${file.name} ---\n`;
+                fileInfo += file.content + "\n"; 
+                fileInfo += `--- สิ้นสุดเนื้อหาไฟล์: ${file.name} ---\n`;
+            });
+            return fileInfo;
+        }
+
+        // ฟังก์ชัน: ดึงข้อมูลจาก response (รองรับทั้ง string และ array)
+function extractResponseContent(response) {
+    if (typeof response === 'string') {
+        return response;
+    }
+    
+    if (Array.isArray(response)) {
+        return response.map(item => {
+            if (typeof item === 'string') return item;
+            if (item.text) return item.text;
+            if (item.content) return item.content;
+            return JSON.stringify(item);
+        }).join('\n');
+    }
+    
+    if (response && typeof response === 'object') {
+        // ดึง String จาก property ต่างๆ ให้ถูกต้อง
+        if (response.message && response.message.content) return response.message.content;
+        if (response.message && typeof response.message === 'string') return response.message;
+        if (response.content) return response.content;
+        if (response.text) return response.text;
+    }
+    
+    return JSON.stringify(response);
+}
+
+        function sendMessage() {
+            const input = document.getElementById("input-message");
+            const sendBtn = document.getElementById("send-btn");
+            const message = input.value.trim();
+            
+            if (!message && uploadedFiles.length === 0 || isLoading) return;
+            
+            try {
+                isLoading = true;
+                sendBtn.disabled = true;
+                sendBtn.innerHTML = '<div class="loading-spinner"></div>';
+                
+                // แสดงข้อความของผู้ใช้พร้อมไฟล์
+                addMessage(message || "(ไฟล์เท่านั้น)", true, false, uploadedFiles.length > 0 ? uploadedFiles : null);
+                input.value = '';
+				input.style.height = 'auto'; // คืนความสูงให้กลับเป็นค่าเริ่มต้น
+                input.focus();
+                
+                // เตรียมข้อความสำหรับส่ง AI - ในรูปแบบ array ของ content objects
+                let userMessage = message;
+                if (uploadedFiles.length > 0) {
+                    userMessage += buildFileInfoText();
+                }
+                
+                // ส่งข้อความในรูปแบบที่เรียบง่าย
+        messages.push({ 
+            role: 'user', 
+            content: userMessage
+        });
+                
+                console.log("Sending message:", JSON.stringify(messages[messages.length - 1]));
+                
+                // ดึงค่าโมเดลที่ผู้ใช้เลือก
+                const selectedModel = document.getElementById("model-select").value;
+                
+                // ถ้ามีการเลือกโมเดล ให้สร้าง Object options ถ้าไม่เลือกให้เป็น undefined
+                const chatOptions = selectedModel ? { model: selectedModel } : undefined;
+                
+                // ส่งข้อความไป AI พร้อมระบุโมเดล
+                puter.ai.chat(messages, chatOptions)
+                    .then(response => {
+                        try {
+                            if (!response) {
+                                throw new Error("No response from AI");
+                            }
+                            
+                            // ดึงข้อมูลจาก response ให้เป็น string
+                            const aiResponse = extractResponseContent(response);
+                            addMessage(aiResponse, false);
+                            
+                            // บันทึกลงใน messages array ในรูปแบบที่เรียบง่าย
+                            messages.push({ 
+                                role: 'assistant', 
+                                content: aiResponse 
+                            });
+                            
+                            // ล้างไฟล์หลังส่งเสร็จ
+                            uploadedFiles = [];
+                            updateFilePreview();
+                        } catch (innerError) {
+                            console.error("Response processing error:", innerError);
+                            const errorMsg = `ข้อผิดพลาดในการประมวลผล: ${innerError.message}`;
+                            addMessage(errorMsg, false, true);
+                        }
+                    })
+                    .catch(error => {
+                        console.error("AI chat error:", error);
+                        
+                        let errorMsg = "เกิดข้อผิดพลาด: ";
+                        if (error.status === 429) {
+                            errorMsg += "ถูกจำกัดอัตรา กรุณาลองใหม่อีกครั้ง";
+                        } else if (error.status === 401) {
+                            errorMsg += "ไม่ได้รับอนุญาต กรุณาเข้าสู่ระบบใหม่";
+                        } else if (error.status === 400) {
+                            errorMsg += "ข้อมูลที่ส่งไม่ถูกต้อง - " + (error.message || "ลองใหม่");
+                        } else if (error.message) {
+                            errorMsg += error.message;
+                        } else {
+                            errorMsg += "ไม่สามารถเชื่อมต่อกับ AI ได้ครับ";
+                        }
+                        
+                        addMessage(errorMsg, false, true);
+                    })
+                    .finally(() => {
+                        isLoading = false;
+                        sendBtn.disabled = false;
+                        sendBtn.textContent = 'Send';
+                    });
+                    
+            } catch (error) {
+                console.error("Send message error:", error);
+                addMessage("เกิดข้อผิดพลาดขณะส่งข้อความ: " + error.message, false, true);
+                isLoading = false;
+                sendBtn.disabled = false;
+                sendBtn.textContent = 'Send';
+            }
+        }
+
+        function downloadChat() {
+            try {
+                const messagesDiv = document.getElementById("messages");
+                const messageNodes = messagesDiv.querySelectorAll('.message');
+                
+                if (messageNodes.length === 0) {
+                    showModal('ไม่มีข้อมูล', 'ยังไม่มีข้อความสนทนาให้ดาวน์โหลด');
+                    return;
+                }
+
+                let chatText = "--- ประวัติการสนทนากับ AI ---\n";
+                chatText += "เวลา: " + new Date().toLocaleString('th-TH') + "\n";
+                chatText += "=".repeat(50) + "\n\n";
+                
+                messageNodes.forEach((node, index) => {
+                    const isUser = node.classList.contains('user-message');
+                    const isError = node.classList.contains('error-message');
+                    const sender = isUser ? "👤 คุณ" : isError ? "❌ ข้อผิดพลาด" : "🤖 AI";
+                    
+                    let content = node.textContent.trim();
+                    
+                    chatText += `${sender}:\n${content}\n\n`;
+                    chatText += "-".repeat(50) + "\n\n";
+                });
+
+                const blob = new Blob([chatText], { type: "text/plain;charset=utf-8" });
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `ai_chat_${new Date().getTime()}.txt`;
+                
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } catch (error) {
+                console.error("Download chat error:", error);
+                showModal('ข้อผิดพลาด', 'ไม่สามารถดาวน์โหลดได้: ' + error.message);
+            }
+        }
+
+        // Auto focus input เมื่อโหลดหน้า
+        window.addEventListener('load', function() {
+            const inputField = document.getElementById("input-message");
+            inputField.focus();
+            loadModels(); 
+
+            // ทำให้ Textarea ขยายตามความยาวข้อความอัตโนมัติ
+            inputField.addEventListener('input', function() {
+                this.style.height = 'auto'; // คืนค่าความสูงให้คำนวณใหม่
+                this.style.height = (this.scrollHeight) + 'px'; // ปรับตามความสูงของเนื้อหา
+            });
+        });
+
+        // Enter key ส่งข้อความ
+        document.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey && !isLoading) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        // ปิด modal เมื่อคลิก overlay
+        document.getElementById('modal-overlay').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal();
+            }
+        });
+		// ฟังก์ชันสำหรับดึงข้อมูล Model จาก Puter.js (รองรับเฉพาะแชท)
+        async function loadModels() {
+            try {
+                // ดึงรายการโมเดลทั้งหมดจากระบบ
+                const allModels = await puter.ai.listModels();
+                
+                // ใช้ filter กรองเอาเฉพาะโมเดลแชท (ตัดโมเดลสร้างภาพ/เสียงออก)
+                const supportedChatModels = allModels.filter(model => {
+                    const modelId = (model.id || model.name).toLowerCase();
+                    
+                    // รายชื่อคำที่มักจะอยู่ในโมเดลที่ไม่ใช่ Chat
+                    const isImageOrAudio = 
+                        modelId.includes('dall-e') || 
+                        modelId.includes('flux') || 
+                        modelId.includes('sdxl') || 
+                        modelId.includes('stable-diffusion') ||
+                        modelId.includes('tts') || // Text-to-speech
+                        modelId.includes('whisper'); // Speech-to-text
+                        
+                    // คืนค่าเฉพาะโมเดลที่ไม่ใช่ Image/Audio
+                    return !isImageOrAudio;
+                });
+
+                const select = document.getElementById('model-select');
+                
+                // นำโมเดลที่กรองแล้วมาแสดงใน Dropdown
+                supportedChatModels.forEach(model => {
+                    const modelIdentifier = model.id || model.name; 
+                    
+                    const option = document.createElement('option');
+                    option.value = modelIdentifier; 
+                    
+                    // แสดงชื่อโมเดล พร้อมกับชื่อผู้ให้บริการ
+                    const providerName = model.provider ? ` [${model.provider}]` : '';
+                    option.textContent = `${model.name}${providerName}`;
+                    
+                    select.appendChild(option);
+                });
+                
+            } catch (error) {
+                console.error("เกิดข้อผิดพลาดในการโหลดโมเดล:", error);
+            }
+        }
+		
+    </script>
+</body>
+
+</html>
