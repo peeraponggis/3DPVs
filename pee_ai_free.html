@@ -405,7 +405,7 @@
                     if (!apiKey) {
                         showApiErrorModal(provider);
                         // ลบข้อความที่ส่งไปในประวัติแชทออก เพราะส่งไม่สำเร็จ
-                        messages.pop(); 
+                        showApiErrorModal(provider); 
                         throw new Error("WAIT_FOR_KEY");
                     }
                     
@@ -416,12 +416,25 @@
                 messages.push({ role: 'assistant', content: aiResponseText });
 
             } catch (error) {
+                // 1. ดึงข้อความล่าสุดออกทันทีถ้าส่งไม่สำเร็จ เพื่อไม่ให้ประวัติแชทรวนตอนส่งใหม่
+                if (messages.length > 0 && messages[messages.length - 1].role === 'user') {
+                    messages.pop();
+                }
+
                 if (error.message !== "WAIT_FOR_KEY") {
                     console.error("Chat error:", error);
+                    const provider = document.querySelector('input[name="ai-provider"]:checked').value;
                     let errorMsg = `ข้อผิดพลาด: ${error.message}`;
-                    if (error.status === 402 || error.message.includes("Balance")) {
+                    
+                    // 2. แยกแยะสาเหตุว่ามาจากค่ายไหน
+                    if (provider === 'puter' && (error.status === 402 || (error.message && error.message.includes("Balance")))) {
                         errorMsg = "โควต้า Puter หมดแล้ว! กรุณาสลับไปใช้ API ของค่ายอื่นด้านบนแทนครับ";
+                    } else if (provider !== 'puter' && error.message && error.message.includes("Balance")) {
+                        errorMsg = `โควต้า/เครดิตฟรีของค่าย ${providerConfig[provider].name} หมดแล้ว หรือ API Key มีปัญหาเรื่องยอดเงิน กรุณาตรวจสอบในเว็บผู้ให้บริการครับ`;
+                    } else if (error.message && error.message.includes("Failed to fetch")) {
+                        errorMsg = `เชื่อมต่อ ${providerConfig[provider].name} ไม่สำเร็จ (อาจถูกบล็อกโดยเบราว์เซอร์หรือเครือข่ายมีปัญหา)`;
                     }
+                    
                     addMessage(errorMsg, false, true);
                 }
             } finally {
