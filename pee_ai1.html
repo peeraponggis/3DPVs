@@ -8,6 +8,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Chat App</title>
     <style>
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             font-family: Arial, sans-serif;
             margin: 0;
@@ -23,58 +27,105 @@
         #chat-container {
             width: 100%;
             max-width: 900px;
+            height: 100vh;
+            max-height: 90vh;
             margin: auto;
             background: white;
             border: 1px solid #ddd;
             border-radius: 4px;
             padding: 20px;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
         }
 
         #messages {
-            /*height: 300px;*/
-            flex-grow: 1; /* ยืดขยายเติมเต็มพื้นที่ว่างอัตโนมัติ */
+            flex: 1;
             overflow-y: auto;
-            border-bottom: 1px solid #ddd;
-            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
             padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        #messages::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        #messages::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+
+        #messages::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+
+        #messages::-webkit-scrollbar-thumb:hover {
+            background: #555;
         }
 
         .message {
-            padding: 5px;
-            margin: 5px 0;
+            padding: 10px 12px;
             border-radius: 4px;
             background: #2c7aef;
             color: white;
             white-space: pre-wrap; /* บังคับให้แสดงผลการขึ้นบรรทัดใหม่ตามจริง */
             word-break: break-word; /* ป้องกันไม่ให้ข้อความยาวๆ หรือโค้ดดันจนทะลุขอบ */
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .user-message {
             text-align: right;
             background: #f9f9f9;
             color: black;
+            margin-left: auto;
+            max-width: 70%;
         }
 
         .user-message .message {
             background: #e0f7fa;
+            color: black;
         }
 
-        #chat-input {display: flex;
-            position: sticky; /* ล็อกให้อยู่กับที่ */
-            bottom: 0; /* ติดขอบล่างสุดของ Container */
-            background-color: white; /* ใส่พื้นหลังสีขาวทึบ */
-            padding: 15px 0; /* เพิ่มพื้นที่ว่างบนล่างให้ดูไม่อึดอัด */
-            border-top: 1px solid #ddd; /* เพิ่มเส้นคั่นบางๆ ด้านบนกล่องพิมพ์ */
-            margin-top: auto;
+        .ai-message {
+            margin-right: auto;
+            max-width: 70%;
+        }
+
+        #chat-input {
+            display: flex;
+            gap: 10px;
+            flex-shrink: 0;
         }
 
         #chat-input input {
-            flex-grow: 1;
+            flex: 1;
             padding: 10px;
-            margin-right: 10px;
             border: 1px solid #ddd;
             border-radius: 4px;
+            font-size: 14px;
+        }
+
+        #chat-input input:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1);
         }
 
         #chat-input button {
@@ -84,19 +135,26 @@
             border: none;
             border-radius: 4px;
             cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
         }
 
         #chat-input button:hover {
             background: #0056b3;
         }
+
+        #chat-input button:active {
+            transform: scale(0.98);
+        }
+
         .download-btn {
-            margin-left: 10px;
             background: #28a745 !important;
         }
 
         .download-btn:hover {
             background: #218838 !important;
         }
+
         .inline-download-btn {
             background: rgba(255, 255, 255, 0.2);
             color: white;
@@ -107,6 +165,7 @@
             cursor: pointer;
             margin-top: 8px;
             float: right;
+            transition: background 0.2s;
         }
 
         .inline-download-btn:hover {
@@ -119,6 +178,13 @@
             display: table;
             clear: both;
         }
+
+        #footer {
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+            margin-top: 10px;
+        }
     </style>
     <script src="https://js.puter.com/v2/"></script>
 
@@ -130,10 +196,10 @@
         <div id="chat-input">
             <input type="text" id="input-message" placeholder="Type a message...">
             <button onclick="sendMessage()">Send</button>
-            <button onclick="downloadChat()" class="download-btn">Download</button> <!-- เพิ่มปุ่มนี้ -->
+            <button onclick="downloadChat()" class="download-btn">Download</button>
         </div>
     </div>
-    <p>Created using Puter.JS</p>
+    <div id="footer">Created using Puter.JS</div>
 
     <script>
         const messages = [];
@@ -146,6 +212,7 @@
                 messageDiv.classList.add("user-message");
                 messageDiv.textContent = msg; // ถ้าเป็นผู้ใช้ ให้แสดงข้อความปกติ
             } else {
+                messageDiv.classList.add("ai-message");
                 // ถ้าเป็น AI ให้สร้างแท็กแยกสำหรับข้อความ
                 const textSpan = document.createElement("span");
                 textSpan.textContent = msg;
@@ -190,6 +257,7 @@
             if (message) {
                 addMessage(message, true);
                 input.value = '';
+                input.focus();
                 // Record the message in array of messages
                 messages.push({ content: message, role: 'user' });
                 // Call the AI chat function
@@ -198,9 +266,11 @@
                     messages.push(response.message);
                 }).catch(error => {
                     console.error("AI response error:", error);
+                    addMessage("ขออภัยครับ เกิดข้อผิดพลาด: " + error.message, false);
                 });
             }
         }
+
         function downloadChat() {
             // ดึงข้อมูลข้อความทั้งหมดที่แสดงอยู่บนหน้าจอ
             const messagesDiv = document.getElementById("messages");
@@ -212,7 +282,8 @@
             }
 
             // จัดรูปแบบข้อความก่อนบันทึก
-            let chatText = "--- ประวัติการสนทนากับ AI ---\n\n";
+            let chatText = "--- ประวัติการสนทนากับ AI ---\n";
+            chatText += "เวลา: " + new Date().toLocaleString('th-TH') + "\n\n";
             
             messageNodes.forEach(node => {
                 // เช็คว่าข้อความนี้เป็นของ User หรือ AI
@@ -238,6 +309,19 @@
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
         }
+
+        // Auto focus input เมื่อโหลดหน้า
+        window.addEventListener('load', function() {
+            document.getElementById("input-message").focus();
+        });
+
+        // Enter key ส่งข้อความ
+        document.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
     </script>
 </body>
 
