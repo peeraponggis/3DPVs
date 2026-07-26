@@ -689,6 +689,31 @@
             return fileInfo;
         }
 
+        // ฟังก์ชัน: ดึงข้อมูลจาก response (รองรับทั้ง string และ array)
+        function extractResponseContent(response) {
+            if (typeof response === 'string') {
+                return response;
+            }
+            
+            if (Array.isArray(response)) {
+                // ถ้า response เป็น array ของ objects ที่มี text property
+                return response.map(item => {
+                    if (typeof item === 'string') return item;
+                    if (item.text) return item.text;
+                    if (item.content) return item.content;
+                    return JSON.stringify(item);
+                }).join('\n');
+            }
+            
+            if (response && typeof response === 'object') {
+                if (response.text) return response.text;
+                if (response.content) return response.content;
+                if (response.message) return response.message;
+            }
+            
+            return JSON.stringify(response);
+        }
+
         function sendMessage() {
             const input = document.getElementById("input-message");
             const sendBtn = document.getElementById("send-btn");
@@ -706,13 +731,13 @@
                 input.value = '';
                 input.focus();
                 
-                // เตรียมข้อความสำหรับส่ง AI - ไม่รวม file content เพราะ API ไม่รองรับ
+                // เตรียมข้อความสำหรับส่ง AI - เป็น string ธรรมดา
                 let userMessage = message;
                 if (uploadedFiles.length > 0) {
                     userMessage += buildFileInfoText();
                 }
                 
-                // ส่งข้อความเป็นสตริงธรรมดา (ตามรูปแบบของ Puter.ai.chat API)
+                // ส่งข้อความในรูปแบบ simple string (เพิ่มตัวถูกต้อง)
                 messages.push({ 
                     role: 'user', 
                     content: userMessage 
@@ -726,8 +751,11 @@
                                 throw new Error("No response from AI");
                             }
                             
-                            const aiResponse = typeof response === 'string' ? response : response.message || JSON.stringify(response);
+                            // ดึงข้อมูลจาก response ให้เป็น string
+                            const aiResponse = extractResponseContent(response);
                             addMessage(aiResponse, false);
+                            
+                            // บันทึกลงใน messages array ในรูปแบบเดียวกัน (string)
                             messages.push({ 
                                 role: 'assistant', 
                                 content: aiResponse 
@@ -751,7 +779,7 @@
                         } else if (error.status === 401) {
                             errorMsg += "ไม่ได้รับอนุญาต กรุณาเข้าสู่ระบบใหม่";
                         } else if (error.status === 400) {
-                            errorMsg += "ข้อมูลที่ส่งไม่ถูกต้อง กรุณาลองใหม่";
+                            errorMsg += "ข้อมูลที่ส่งไม่ถูกต้อง - ตรวจสอบ message format";
                         } else if (error.message) {
                             errorMsg += error.message;
                         } else {
