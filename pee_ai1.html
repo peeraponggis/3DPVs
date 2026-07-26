@@ -102,6 +102,30 @@
             display: flex;
             gap: 6px;
             align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .message-files {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 8px;
+        }
+
+        .file-item {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            word-break: break-all;
+        }
+
+        .file-icon {
+            font-size: 16px;
+            min-width: 20px;
         }
 
         .user-message {
@@ -185,6 +209,52 @@
             background: rgba(255, 255, 255, 0.35);
         }
 
+        #input-area {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        #file-preview {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 8px;
+            background: #f5f5f5;
+            border-radius: 4px;
+            border: 1px solid #e0e0e0;
+            max-height: 100px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        #file-preview.show {
+            display: flex;
+        }
+
+        .file-tag {
+            background: #2196F3;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .file-tag .remove-file {
+            cursor: pointer;
+            font-weight: bold;
+            margin-left: 4px;
+        }
+
+        .file-tag .remove-file:hover {
+            opacity: 0.7;
+        }
+
         #chat-input {
             display: flex;
             gap: 10px;
@@ -214,6 +284,8 @@
             cursor: pointer;
             font-weight: bold;
             transition: all 0.2s;
+            font-size: 16px;
+            min-width: 45px;
         }
 
         #chat-input button:hover {
@@ -230,12 +302,31 @@
             opacity: 0.6;
         }
 
+        #upload-btn {
+            background: #FF9800;
+            padding: 10px 16px;
+        }
+
+        #upload-btn:hover {
+            background: #F57C00;
+        }
+
+        #upload-btn.max-files {
+            background: #ccc;
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
         .download-btn {
             background: #28a745 !important;
         }
 
         .download-btn:hover {
             background: #218838 !important;
+        }
+
+        #file-input {
+            display: none;
         }
 
         #footer {
@@ -258,6 +349,56 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .modal-content h3 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+
+        .modal-content p {
+            margin: 10px 0;
+            color: #666;
+        }
+
+        .modal-content button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+
+        .modal-content button:hover {
+            background: #0056b3;
+        }
     </style>
     <script src="https://js.puter.com/v2/"></script>
 
@@ -266,37 +407,160 @@
 <body>
     <div id="chat-container">
         <div id="messages"></div>
-        <div id="chat-input">
-            <input type="text" id="input-message" placeholder="Type a message...">
-            <button id="send-btn" onclick="sendMessage()">Send</button>
-            <button onclick="downloadChat()" class="download-btn">📥 Download</button>
+        <div id="input-area">
+            <div id="file-preview"></div>
+            <div id="chat-input">
+                <button id="upload-btn" onclick="triggerFileUpload()" title="Upload files (Max 10)">➕</button>
+                <input type="text" id="input-message" placeholder="Type a message...">
+                <button id="send-btn" onclick="sendMessage()">Send</button>
+                <button onclick="downloadChat()" class="download-btn">📥</button>
+            </div>
         </div>
     </div>
     <div id="footer">Created using Puter.JS</div>
 
+    <input type="file" id="file-input" multiple accept=".txt,.pdf,.jpg,.png,.jpeg,.gif,.csv,.json,.xml,.html,.css,.js,.py,.java,.cpp,.c,.php" onchange="handleFileSelect(event)">
+
+    <div id="modal-overlay" class="modal-overlay">
+        <div class="modal-content">
+            <h3 id="modal-title">ข้อความ</h3>
+            <p id="modal-message"></p>
+            <button onclick="closeModal()">ปิด</button>
+        </div>
+    </div>
+
     <script>
         const messages = [];
+        let uploadedFiles = [];
         let isLoading = false;
+        const MAX_FILES = 10;
+
+        function getFileIcon(fileName) {
+            const ext = fileName.split('.').pop().toLowerCase();
+            const icons = {
+                'pdf': '📄',
+                'txt': '📝',
+                'jpg': '🖼️',
+                'jpeg': '🖼️',
+                'png': '🖼️',
+                'gif': '🖼️',
+                'csv': '📊',
+                'json': '{}',
+                'xml': '🔖',
+                'html': '🌐',
+                'css': '🎨',
+                'js': '⚙️',
+                'py': '🐍',
+                'java': '☕',
+                'cpp': '⚡',
+                'c': '⚡',
+                'php': '🐘'
+            };
+            return icons[ext] || '📎';
+        }
+
+        function showModal(title, message) {
+            document.getElementById('modal-title').textContent = title;
+            document.getElementById('modal-message').textContent = message;
+            document.getElementById('modal-overlay').classList.add('show');
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('show');
+        }
+
+        function triggerFileUpload() {
+            if (uploadedFiles.length >= MAX_FILES) {
+                showModal('ไฟล์เต็มแล้ว', `คุณสามารถอัปโหลดได้ไม่เกิน ${MAX_FILES} ไฟล์เท่านั้น`);
+                return;
+            }
+            document.getElementById('file-input').click();
+        }
+
+        function handleFileSelect(event) {
+            const files = Array.from(event.target.files);
+            const remainingSlots = MAX_FILES - uploadedFiles.length;
+
+            if (files.length > remainingSlots) {
+                showModal('เกินจำนวนไฟล์', `คุณเลือกไฟล์ ${files.length} ไฟล์ แต่สามารถอัปโหลดได้เพียง ${remainingSlots} ไฟล์`);
+                event.target.value = '';
+                return;
+            }
+
+            for (const file of files) {
+                // ตรวจสอบขนาดไฟล์ (10MB ต่อไฟล์)
+                if (file.size > 10 * 1024 * 1024) {
+                    showModal('ไฟล์ใหญ่เกินไป', `${file.name} มีขนาดเกิน 10MB`);
+                    continue;
+                }
+
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    uploadedFiles.push({
+                        name: file.name,
+                        content: e.target.result,
+                        size: file.size
+                    });
+                    updateFilePreview();
+                };
+                reader.readAsText(file);
+            }
+
+            event.target.value = '';
+        }
+
+        function updateFilePreview() {
+            const preview = document.getElementById('file-preview');
+            preview.innerHTML = '';
+
+            if (uploadedFiles.length === 0) {
+                preview.classList.remove('show');
+                return;
+            }
+
+            preview.classList.add('show');
+            uploadedFiles.forEach((file, index) => {
+                const tag = document.createElement('div');
+                tag.className = 'file-tag';
+                tag.innerHTML = `
+                    ${getFileIcon(file.name)} <span>${file.name}</span>
+                    <span class="remove-file" onclick="removeFile(${index})">×</span>
+                `;
+                preview.appendChild(tag);
+            });
+
+            // อัปเดตสถานะปุ่ม upload
+            const uploadBtn = document.getElementById('upload-btn');
+            if (uploadedFiles.length >= MAX_FILES) {
+                uploadBtn.classList.add('max-files');
+                uploadBtn.title = `ถึงขีดจำกัด (${MAX_FILES}/${MAX_FILES})`;
+            } else {
+                uploadBtn.classList.remove('max-files');
+                uploadBtn.title = `Upload files (${uploadedFiles.length}/${MAX_FILES})`;
+            }
+        }
+
+        function removeFile(index) {
+            uploadedFiles.splice(index, 1);
+            updateFilePreview();
+        }
 
         // ฟังก์ชัน: แทนที่ markdown code blocks ด้วย HTML
         function parseMarkdownWithCode(text) {
             const messageDiv = document.createElement("div");
             messageDiv.className = "message-content";
             
-            // แบ่งข้อความตามรหัส code blocks
             const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g;
             let lastIndex = 0;
             let match;
             
             while ((match = codeBlockRegex.exec(text)) !== null) {
-                // เพิ่มข้อความปกติก่อน code block
                 if (match.index > lastIndex) {
                     const normalText = document.createElement("span");
                     normalText.textContent = text.substring(lastIndex, match.index);
                     messageDiv.appendChild(normalText);
                 }
                 
-                // สร้าง code block
                 const pre = document.createElement("pre");
                 const code = document.createElement("code");
                 const language = match[1] || 'plaintext';
@@ -307,20 +571,17 @@
                 pre.appendChild(code);
                 messageDiv.appendChild(pre);
                 
-                // Highlight ด้วย highlight.js
                 hljs.highlightElement(code);
                 
                 lastIndex = match.index + match[0].length;
             }
             
-            // เพิ่มข้อความคงเหลือ
             if (lastIndex < text.length) {
                 const normalText = document.createElement("span");
                 normalText.textContent = text.substring(lastIndex);
                 messageDiv.appendChild(normalText);
             }
             
-            // ถ้าไม่มี code block ให้แสดงข้อความปกติ
             if (!codeBlockRegex.test(text)) {
                 messageDiv.textContent = text;
             }
@@ -328,26 +589,39 @@
             return messageDiv;
         }
 
-        function addMessage(msg, isUser, isError = false) {
+        function addMessage(msg, isUser, isError = false, files = null) {
             const messagesDiv = document.getElementById("messages");
             const messageDiv = document.createElement("div");
             messageDiv.classList.add("message");
             
             if (isUser) {
                 messageDiv.classList.add("user-message");
-                messageDiv.textContent = msg;
+                
+                // แสดงไฟล์ถ้ามี
+                if (files && files.length > 0) {
+                    const filesDiv = document.createElement("div");
+                    filesDiv.className = "message-files";
+                    files.forEach(file => {
+                        const fileItem = document.createElement("div");
+                        fileItem.className = "file-item";
+                        fileItem.innerHTML = `${getFileIcon(file.name)} ${file.name}`;
+                        filesDiv.appendChild(fileItem);
+                    });
+                    messageDiv.appendChild(filesDiv);
+                }
+                
+                const textDiv = document.createElement("div");
+                textDiv.textContent = msg;
+                messageDiv.appendChild(textDiv);
             } else {
                 messageDiv.classList.add(isError ? "error-message" : "ai-message");
                 
-                // สร้าง content area
                 const contentDiv = parseMarkdownWithCode(msg);
                 messageDiv.appendChild(contentDiv);
                 
-                // สร้าง actions area (ปุ่มต่างๆ)
                 const actionsDiv = document.createElement("div");
                 actionsDiv.className = "message-actions";
                 
-                // ปุ่มดาวน์โหลด
                 const downloadBtn = document.createElement("button");
                 downloadBtn.textContent = "💾 Save";
                 downloadBtn.className = "message-btn";
@@ -356,7 +630,6 @@
                 };
                 actionsDiv.appendChild(downloadBtn);
                 
-                // ปุ่มคัดลอก
                 const copyBtn = document.createElement("button");
                 copyBtn.textContent = "📋 Copy";
                 copyBtn.className = "message-btn";
@@ -393,8 +666,21 @@
                 URL.revokeObjectURL(url);
             } catch (error) {
                 console.error("Download error:", error);
-                alert("ไม่สามารถดาวน์โหลดได้ครับ");
+                showModal('ข้อผิดพลาด', 'ไม่สามารถดาวน์โหลดได้');
             }
+        }
+
+        function buildMessageWithFiles(text, files) {
+            let content = text;
+            
+            if (files && files.length > 0) {
+                content += "\n\n[ไฟล์ที่แนบ]:\n";
+                files.forEach(file => {
+                    content += `- ${file.name} (${Math.round(file.size / 1024)}KB)\n`;
+                });
+            }
+            
+            return content;
         }
 
         function sendMessage() {
@@ -402,18 +688,21 @@
             const sendBtn = document.getElementById("send-btn");
             const message = input.value.trim();
             
-            if (!message || isLoading) return;
+            if (!message && uploadedFiles.length === 0 || isLoading) return;
             
             try {
                 isLoading = true;
                 sendBtn.disabled = true;
                 sendBtn.innerHTML = '<div class="loading-spinner"></div>';
                 
-                addMessage(message, true);
+                // แสดงข้อความของผู้ใช้พร้อมไฟล์
+                addMessage(message || "(ไฟล์เท่านั้น)", true, false, uploadedFiles.length > 0 ? uploadedFiles : null);
                 input.value = '';
                 input.focus();
                 
-                messages.push({ content: message, role: 'user' });
+                // เตรียมข้อมูลส่ง AI
+                let userContent = buildMessageWithFiles(message, uploadedFiles);
+                messages.push({ content: userContent, role: 'user' });
                 
                 // ส่งข้อความไป AI พร้อม error handling
                 puter.ai.chat(messages)
@@ -426,6 +715,10 @@
                             const aiResponse = typeof response === 'string' ? response : response.message || response;
                             addMessage(aiResponse, false);
                             messages.push({ content: aiResponse, role: 'assistant' });
+                            
+                            // ล้างไฟล์หลังส่งเสร็จ
+                            uploadedFiles = [];
+                            updateFilePreview();
                         } catch (innerError) {
                             console.error("Response processing error:", innerError);
                             const errorMsg = `ข้อผิดพลาดในการประมวลผล: ${innerError.message}`;
@@ -469,24 +762,23 @@
                 const messageNodes = messagesDiv.querySelectorAll('.message');
                 
                 if (messageNodes.length === 0) {
-                    alert("ยังไม่มีข้อความสนทนาให้ดาวน์โหลดครับ");
+                    showModal('ไม่มีข้อมูล', 'ยังไม่มีข้อความสนทนาให้ดาวน์โหลด');
                     return;
                 }
 
                 let chatText = "--- ประวัติการสนทนากับ AI ---\n";
                 chatText += "เวลา: " + new Date().toLocaleString('th-TH') + "\n";
-                chatText += "=" .repeat(50) + "\n\n";
+                chatText += "=".repeat(50) + "\n\n";
                 
                 messageNodes.forEach((node, index) => {
                     const isUser = node.classList.contains('user-message');
                     const isError = node.classList.contains('error-message');
                     const sender = isUser ? "👤 คุณ" : isError ? "❌ ข้อผิดพลาด" : "🤖 AI";
                     
-                    // ดึง text content จาก node โดยใช้ textContent
                     let content = node.textContent.trim();
                     
                     chatText += `${sender}:\n${content}\n\n`;
-                    chatText += "-" .repeat(50) + "\n\n";
+                    chatText += "-".repeat(50) + "\n\n";
                 });
 
                 const blob = new Blob([chatText], { type: "text/plain;charset=utf-8" });
@@ -502,7 +794,7 @@
                 URL.revokeObjectURL(url);
             } catch (error) {
                 console.error("Download chat error:", error);
-                alert("ไม่สามารถดาวน์โหลดได้ครับ: " + error.message);
+                showModal('ข้อผิดพลาด', 'ไม่สามารถดาวน์โหลดได้: ' + error.message);
             }
         }
 
@@ -516,6 +808,13 @@
             if (e.key === 'Enter' && !e.shiftKey && !isLoading) {
                 e.preventDefault();
                 sendMessage();
+            }
+        });
+
+        // ปิด modal เมื่อคลิก overlay
+        document.getElementById('modal-overlay').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal();
             }
         });
     </script>
