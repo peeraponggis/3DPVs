@@ -60,8 +60,13 @@
             background: #e0f7fa;
         }
 
-        #chat-input {
-            display: flex;
+        #chat-input {display: flex;
+            position: sticky; /* ล็อกให้อยู่กับที่ */
+            bottom: 0; /* ติดขอบล่างสุดของ Container */
+            background-color: white; /* ใส่พื้นหลังสีขาวทึบ */
+            padding: 15px 0; /* เพิ่มพื้นที่ว่างบนล่างให้ดูไม่อึดอัด */
+            border-top: 1px solid #ddd; /* เพิ่มเส้นคั่นบางๆ ด้านบนกล่องพิมพ์ */
+            margin-top: auto;
         }
 
         #chat-input input {
@@ -92,6 +97,28 @@
         .download-btn:hover {
             background: #218838 !important;
         }
+        .inline-download-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 12px;
+            cursor: pointer;
+            margin-top: 8px;
+            float: right;
+        }
+
+        .inline-download-btn:hover {
+            background: rgba(255, 255, 255, 0.4);
+        }
+
+        /* เคลียร์ float เพื่อให้กล่องข้อความครอบคลุมปุ่มพอดี */
+        .message::after {
+            content: "";
+            display: table;
+            clear: both;
+        }
     </style>
     <script src="https://js.puter.com/v2/"></script>
 
@@ -114,12 +141,47 @@
             const messagesDiv = document.getElementById("messages");
             const messageDiv = document.createElement("div");
             messageDiv.classList.add("message");
+            
             if (isUser) {
                 messageDiv.classList.add("user-message");
+                messageDiv.textContent = msg; // ถ้าเป็นผู้ใช้ ให้แสดงข้อความปกติ
+            } else {
+                // ถ้าเป็น AI ให้สร้างแท็กแยกสำหรับข้อความ
+                const textSpan = document.createElement("span");
+                textSpan.textContent = msg;
+                messageDiv.appendChild(textSpan);
+                
+                // สร้างปุ่มดาวน์โหลดเฉพาะข้อความนี้
+                const downloadBtn = document.createElement("button");
+                downloadBtn.textContent = "⬇️ Download";
+                downloadBtn.classList.add("inline-download-btn");
+                
+                // สั่งให้ดาวน์โหลดข้อความ msg เมื่อกดปุ่ม
+                downloadBtn.onclick = function() {
+                    downloadSingleMessage(msg);
+                };
+                
+                messageDiv.appendChild(downloadBtn);
             }
-            messageDiv.textContent = msg;
+            
             messagesDiv.appendChild(messageDiv);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        // ฟังก์ชันสำหรับดาวน์โหลดเฉพาะข้อความที่ส่งมา
+        function downloadSingleMessage(text) {
+            const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "ai_response.txt"; // ชื่อไฟล์ที่จะได้
+            
+            document.body.appendChild(a);
+            a.click();
+            
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         }
 
         function sendMessage() {
