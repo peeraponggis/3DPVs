@@ -21,8 +21,8 @@
         }
 
         #chat-container {
-            width: 90%;
-            max-width: 700px;
+            width: 100%;
+            max-width: 900px;
             margin: auto;
             background: white;
             border: 1px solid #ddd;
@@ -84,6 +84,14 @@
         #chat-input button:hover {
             background: #0056b3;
         }
+        .download-btn {
+            margin-left: 10px;
+            background: #28a745 !important;
+        }
+
+        .download-btn:hover {
+            background: #218838 !important;
+        }
     </style>
     <script src="https://js.puter.com/v2/"></script>
 
@@ -95,6 +103,7 @@
         <div id="chat-input">
             <input type="text" id="input-message" placeholder="Type a message...">
             <button onclick="sendMessage()">Send</button>
+            <button onclick="downloadChat()" class="download-btn">Download</button> <!-- เพิ่มปุ่มนี้ -->
         </div>
     </div>
     <p>Created using Puter.JS</p>
@@ -129,6 +138,43 @@
                     console.error("AI response error:", error);
                 });
             }
+        }
+        function downloadChat() {
+            // ดึงข้อมูลข้อความทั้งหมดที่แสดงอยู่บนหน้าจอ
+            const messagesDiv = document.getElementById("messages");
+            const messageNodes = messagesDiv.querySelectorAll('.message');
+            
+            if (messageNodes.length === 0) {
+                alert("ยังไม่มีข้อความสนทนาให้ดาวน์โหลดครับ");
+                return;
+            }
+
+            // จัดรูปแบบข้อความก่อนบันทึก
+            let chatText = "--- ประวัติการสนทนากับ AI ---\n\n";
+            
+            messageNodes.forEach(node => {
+                // เช็คว่าข้อความนี้เป็นของ User หรือ AI
+                const isUser = node.classList.contains('user-message');
+                const sender = isUser ? "คุณ" : "AI";
+                
+                chatText += `${sender}: ${node.textContent}\n\n`;
+            });
+
+            // สร้างไฟล์ Blob (ข้อความ) สำหรับดาวน์โหลด
+            const blob = new Blob([chatText], { type: "text/plain;charset=utf-8" });
+            const url = URL.createObjectURL(blob);
+            
+            // สร้างแท็ก <a> จำลองเพื่อสั่งดาวน์โหลดไฟล์
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "ai_chat_history.txt"; // กำหนดชื่อไฟล์ที่จะบันทึก
+            
+            document.body.appendChild(a);
+            a.click();
+            
+            // คืนค่าหน่วยความจำหลังดาวน์โหลดเสร็จ
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         }
     </script>
 </body>
