@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global AI Hub Nexus</title>
+    <!-- ลิงก์สำหรับ PWA Manifest -->
+    <link id="manifest-link" rel="manifest" href="">
+    <meta name="theme-color" content="#121212">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <!-- Google Picker API สำหรับ Google Drive -->
+    <script src="https://apis.google.com/js/api.js"></script>
+    
+    <style>
+        :root {
+            --bg-dark: #121212;
+            --bg-panel: #1e1e1e;
+            --text-main: #e0e0e0;
+            --accent: #ff007f;
+            --accent-hover: #ff3399;
+            --border: #333;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #app-container {
+            width: 100%;
+            max-width: 1200px;
+            height: 100vh;
+            background-color: var(--bg-panel);
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            overflow: hidden;
+        }
+
+        @media (min-width: 768px) {
+            #app-container {
+                height: 95vh;
+                border: 1px solid var(--border);
+                border-radius: 12px;
+            }
+        }
+
+        /* Header & Controls */
+        #header {
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: rgba(0,0,0,0.3);
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        h2 { margin: 0; font-size: 20px; color: var(--accent); display: flex; align-items: center; gap: 8px;}
+
+        select, input, button {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            border: 1px solid var(--border);
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 14px;
+            outline: none;
+        }
+
+        select:focus, input:focus, textarea:focus { border-color: var(--accent); }
+        
+        #auto-model-select { flex: 1; min-width: 250px; max-width: 400px; }
+        
+        /* Dropdown ของ AI Portal */
+        #portal-select {
+            background-color: #0a0a0a;
+            color: #00ffcc;
+            border-color: #00ffcc;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        button {
+            background-color: var(--accent);
+            color: #fff;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            border: none;
+        }
+
+        button:hover { background-color: var(--accent-hover); }
+        .btn-outline { background-color: transparent; color: var(--accent); border: 1px solid var(--accent); }
+        .btn-outline:hover { background-color: rgba(255, 0, 127, 0.1); }
+        
+        .btn-small { padding: 5px 10px; font-size: 12px; border-radius: 4px; }
+
+        /* Chat Area */
+        #chat-window {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .message {
+            padding: 15px;
+            border-radius: 8px;
+            max-width: 85%;
+            line-height: 1.5;
+            animation: fadeIn 0.3s ease;
+            position: relative;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .user-msg {
+            background-color: #2a2a2a;
+            align-self: flex-end;
+            border-bottom-right-radius: 0;
+        }
+
+        .ai-msg {
+            background-color: rgba(255, 0, 127, 0.05);
+            border: 1px solid rgba(255, 0, 127, 0.2);
+            align-self: flex-start;
+            border-bottom-left-radius: 0;
+            width: 100%;
+        }
+
+        .system-msg {
+            align-self: center;
+            color: #888;
+            font-size: 13px;
+            padding: 5px 15px;
+            background: rgba(0,0,0,0.5);
+            border-radius: 20px;
+        }
+
+        pre { background: #000; padding: 35px 15px 15px 15px; border-radius: 6px; overflow-x: auto; border: 1px solid var(--border); margin-top: 10px; }
+        code { font-family: Consolas, monospace; }
+
+        /* Input Area & File Controls */
+        #input-container {
+            border-top: 1px solid var(--border);
+            background-color: rgba(0,0,0,0.2);
+            display: flex;
+            flex-direction: column;
+        }
+
+        #file-toolbar {
+            padding: 10px 15px;
+            display: flex;
+            gap: 10px;
+            border-bottom: 1px dashed #333;
+        }
+
+        #input-area {
+            padding: 15px;
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+
+        textarea {
+            flex: 1;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            border: 1px solid var(--border);
+            padding: 12px;
+            border-radius: 8px;
+            resize: none;
+            min-height: 50px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        #send-btn { height: 50px; padding: 0 25px; }
+
+        /* Settings Modal */
+        #settings-modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: var(--bg-panel);
+            padding: 30px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            border: 1px solid var(--accent);
+            box-shadow: 0 0 20px rgba(255, 0, 127, 0.2);
+        }
+        
+        .loader {
+            border: 3px solid rgba(255,255,255,0.1);
+            border-top: 3px solid #fff;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <div id="app-container">
+        <div id="header">
+            <h2>🌐 Global AI Hub</h2>
+            <select id="auto-model-select">
+                <option value="">กำลังเชื่อมต่อฐานข้อมูลโมเดลทั่วโลก...</option>
+            </select>
+            
+            <button class="btn-outline" onclick="openSettings()">⚙️ API Key</button>
+            
+            <!-- เมนูทางลัด AI Portal -->
+            <select id="portal-select" onchange="if(this.value) window.open(this.value, '_blank'); this.selectedIndex = 0;">
+                <option value="">⚡ ทางลัด AI Portal</option>
+            </select>
+        </div>
+
+        <div id="chat-window">
+            <div class="system-msg">ระบบพร้อมใช้งาน โหลดรายชื่อโมเดลล่าสุดสำเร็จ</div>
+        </div>
+
+        <div id="input-container">
+            <!-- เมนูจัดการไฟล์ -->
+            <div id="file-toolbar">
+                <input type="file" id="file-upload" style="display:none" onchange="handleLocalFile(event)">
+                <button class="btn-outline btn-small" onclick="document.getElementById('file-upload').click()">📁 นำเข้าไฟล์ (Local)</button>
+                <button class="btn-outline btn-small" onclick="openGoogleDrivePicker()" style="color: #4285F4; border-color: #4285F4;">☁️ นำเข้าจาก Google Drive</button>
+                <span id="file-status" style="font-size: 12px; color: #888; align-self: center;"></span>
+            </div>
+            
+            <div id="input-area">
+                <textarea id="user-input" placeholder="ป้อนคำสั่งของคุณ... หรืออัปโหลดไฟล์เพื่อให้ AI วิเคราะห์ (กด Shift+Enter เพื่อขึ้นบรรทัดใหม่)"></textarea>
+                <button id="send-btn" onclick="sendMessage()">ส่ง</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal">
+        <div class="modal-content">
+            <h3 style="margin-top: 0; color: var(--accent);">ตั้งค่าการเข้าถึง (OpenRouter API)</h3>
+            <p style="font-size: 14px; color: #aaa;">
+                เพียงใส่ API Key ของ OpenRouter แค่ตัวเดียว คุณก็สามารถแชทกับ AI ทุกค่ายในโลกได้ทันทีผ่านหน้านี้
+            </p>
+            <div style="margin-bottom: 20px;">
+                <input type="password" id="openrouter-key" placeholder="sk-or-v1-..." style="width: 100%; font-family: monospace;">
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                <button class="btn-outline" onclick="closeSettings()">ปิด</button>
+                <button onclick="saveSettings()">บันทึกรหัส</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const MY_API_KEY = "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";let chatHistory = [];
+        let isLoading = false;
+		// เพิ่มตัวแปรเก็บข้อมูลไฟล์และชื่อไฟล์ไว้หลังบ้าน
+        let attachedFileData = null; 
+        let attachedFileName = "";
+
+        // ==========================================
+        // 1. ฐานข้อมูลลิงก์ AI ออฟฟิเชียล (นำมาจาก my_ai_portal)
+        // ==========================================
+        const aiProviders = [
+            { name: "ChatGPT", url: "https://chatgpt.com/", icon: "🤖" },
+            { name: "Gemini", url: "https://gemini.google.com/", icon: "✨" },
+            { name: "Claude", url: "https://claude.ai/", icon: "🧠" },
+            { name: "DeepSeek", url: "https://chat.deepseek.com/", icon: "🐋" },
+            { name: "Qwen", url: "https://tongyi.aliyun.com/qianwen/", icon: "☁️" },
+            { name: "Perplexity", url: "https://www.perplexity.ai/", icon: "🔍" },
+            { name: "Copilot", url: "https://copilot.microsoft.com/", icon: "💻" },
+            { name: "Poe", url: "https://poe.com/", icon: "💬" }
+        ];
+
+        function loadPortalMenu() {
+            const portalSelect = document.getElementById('portal-select');
+            aiProviders.forEach(ai => {
+                const opt = document.createElement('option');
+                opt.value = ai.url;
+                opt.textContent = `${ai.icon} ${ai.name}`;
+                portalSelect.appendChild(opt);
+            });
+        }
+
+        // ==========================================
+        // การจัดการ User Input และ Settings
+        // ==========================================
+        const userInput = document.getElementById('user-input');
+        userInput.addEventListener('input', function() {
+            this.style.height = '50px';
+            this.style.height = (this.scrollHeight) + 'px';
+        });
+        userInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        function loadSettings() {
+            // นำค่าจากตัวแปรไปใส่ในช่อง Settings ไว้เฉยๆ และปิดการเด้งแจ้งเตือน
+            document.getElementById('openrouter-key').value = MY_API_KEY; 
+        }
+        function openSettings() { document.getElementById('settings-modal').style.display = 'flex'; }
+        function closeSettings() { document.getElementById('settings-modal').style.display = 'none'; }
+        function saveSettings() {
+            localStorage.setItem('global_or_key', document.getElementById('openrouter-key').value.trim());
+            closeSettings();
+            addSystemMsg("บันทึก API Key แล้ว พร้อมใช้งาน!");
+        }
+
+        // ==========================================
+        // ระบบดึงรายชื่อโมเดลทั่วโลกอัตโนมัติ
+        // ==========================================
+        async function fetchAllModelsRealtime() {
+            const select = document.getElementById('auto-model-select');
+            try {
+                const response = await fetch('https://openrouter.ai/api/v1/models');
+                const data = await response.json();
+                select.innerHTML = '';
+                
+                // จัดเรียงใหม่: ให้โมเดลฟรีขึ้นก่อน แล้วค่อยเรียงตามตัวอักษร
+                data.data.sort((a, b) => {
+                    const isFreeA = a.pricing && a.pricing.prompt === "0";
+                    const isFreeB = b.pricing && b.pricing.prompt === "0";
+                    
+                    if (isFreeA && !isFreeB) return -1; // A ฟรี ดันขึ้นบน
+                    if (!isFreeA && isFreeB) return 1;  // B ฟรี ดันขึ้นบน
+                    return a.id.localeCompare(b.id);    // ถ้าสถานะเหมือนกัน (ฟรีทั้งคู่ หรือเสียเงินทั้งคู่) ให้เรียงตามชื่อ
+                }).forEach(model => {
+                    const option = document.createElement('option');
+                    option.value = model.id;
+                    let displayName = model.name;
+                    if (model.pricing && model.pricing.prompt === "0") {
+                        displayName = "🟢 [FREE] " + displayName;
+                    }
+                    option.textContent = `${model.id.split('/')[0].toUpperCase()} - ${displayName}`;
+                    select.appendChild(option);
+                });
+                
+                const defaultModel = "google/gemini-flash-1.5";
+                if(document.querySelector(`option[value="${defaultModel}"]`)) {
+                    select.value = defaultModel;
+                }
+            } catch (error) {
+                select.innerHTML = '<option value="">โหลดรายชื่อล้มเหลว กรุณาตรวจสอบอินเทอร์เน็ต</option>';
+            }
+        }
+
+        // ==========================================
+        // ระบบจัดการไฟล์ (Local & Google Drive)
+        // ==========================================
+        function handleLocalFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                // เก็บเนื้อหาไฟล์ไว้ในตัวแปรหลังบ้าน แทนการใส่ในกล่องข้อความ
+                attachedFileData = e.target.result;
+                attachedFileName = file.name;
+                
+                // แจ้งเตือนผู้ใช้ว่าแนบไฟล์ไว้แล้ว (ไม่หายไปจนกว่าจะกดส่ง)
+                document.getElementById('file-status').innerHTML = `✅ แนบไฟล์ <b>${file.name}</b> ไว้หลังบ้านแล้ว`;
+            };
+            reader.readAsText(file);
+            event.target.value = ""; // รีเซ็ต input เผื่อต้องการเลือกไฟล์เดิมซ้ำ
+        }
+
+        // Mockup ฟังก์ชัน Google Drive Picker (ต้องใช้ Client ID ในการใช้งานจริง)
+        function openGoogleDrivePicker() {
+            alert("การใช้งาน Google Drive Picker อย่างเต็มรูปแบบ จำเป็นต้องตั้งค่า Google Cloud Console เพื่อขอ Client ID และ API Key \n\nอย่างไรก็ตาม โปรแกรมได้เตรียมโครงสร้างปุ่มรับข้อมูลเอาไว้ให้แล้ว สามารถนำไปเชื่อม API ได้ทันที");
+            // หากมี Client ID ให้ใช้ gapi.client เพื่อโหลด picker ที่นี่
+        }
+
+        // ==========================================
+        // ระบบ Download ไฟล์ (โค้ด & ข้อความ AI)
+        // ==========================================
+        function downloadContent(base64Data, filename) {
+            const decodedContent = decodeURIComponent(escape(atob(base64Data)));
+            const blob = new Blob([decodedContent], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // ==========================================
+        // UI Helpers & ระบบส่งข้อความ
+        // ==========================================
+        function addChatMsg(text, className) {
+            const chatWindow = document.getElementById('chat-window');
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${className}`;
+            
+            if (className.includes('ai-msg') && !text.includes('❌ ข้อผิดพลาด')) {
+                // เข้ารหัสข้อความเต็มสำหรับปุ่มเซฟ
+                const fullTextBase64 = btoa(unescape(encodeURIComponent(text)));
+                
+                // จัดการเรื่อง Code Blocks (พร้อมปุ่มดาวน์โหลดโค้ดที่มุมขวาบน)
+                let formattedText = text.replace(/```(\w*)\n([\s\S]*?)```/g, function(match, lang, code) {
+                    const safeCode = code.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    const codeBase64 = btoa(unescape(encodeURIComponent(code)));
+                    const ext = lang || 'txt';
+                    return `
+                        <div style="position: relative;">
+                            <button class="btn-outline btn-small" 
+                                    onclick="downloadContent('${codeBase64}', 'code_snippet.${ext}')" 
+                                    style="position: absolute; top: 12px; right: 10px; z-index: 10; background: var(--bg-dark); border-color: #888; color: #ccc;">
+                                📥 ดาวน์โหลดโค้ด
+                            </button>
+                            <pre><code class="language-${lang || 'plaintext'}">${safeCode}</code></pre>
+                        </div>`;
+                });
+                
+                // เพิ่มปุ่ม "บันทึกข้อความที่ AI ตอบ" ด้านล่างสุดของกล่องข้อความ
+                formattedText += `
+                    <div style="margin-top: 15px; border-top: 1px solid rgba(255,0,127,0.2); padding-top: 10px; display: flex; justify-content: flex-end;">
+                        <button class="btn-outline btn-small" onclick="downloadContent('${fullTextBase64}', 'AI_Response_${new Date().getTime()}.txt')">
+                            💾 บันทึกคำตอบ AI
+                        </button>
+                    </div>
+                `;
+
+                msgDiv.innerHTML = formattedText;
+                msgDiv.querySelectorAll('pre code').forEach((block) => hljs.highlightElement(block));
+            } else {
+                msgDiv.textContent = text;
+            }
+            
+            chatWindow.appendChild(msgDiv);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+
+        function addSystemMsg(text) {
+            const chatWindow = document.getElementById('chat-window');
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `system-msg`;
+            msgDiv.textContent = text;
+            chatWindow.appendChild(msgDiv);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+
+        function setLoading(loading) {
+            isLoading = loading;
+            const btn = document.getElementById('send-btn');
+            if (loading) {
+                btn.innerHTML = '<div class="loader"></div>';
+                btn.disabled = true;
+            } else {
+                btn.innerHTML = 'ส่ง';
+                btn.disabled = false;
+            }
+        }
+
+        async function sendMessage() {
+            const text = userInput.value.trim();
+            // ยอมให้ส่งได้ถ้ามีการพิมพ์ข้อความ "หรือ" มีการแนบไฟล์
+            if ((!text && !attachedFileData) || isLoading) return;
+			
+            const apiKey = MY_API_KEY; // <--- เปลี่ยนมาใช้ตัวแปรที่ฝังไว้
+            // ลบบรรทัดที่เช็ค if (!apiKey) ออกไปเลยก็ได้
+
+            const selectedModel = document.getElementById('auto-model-select').value;
+            
+            // 1. จัดการข้อความที่จะแสดงบนหน้าจอ (UI)
+            let displayMsg = text;
+            if (attachedFileData) {
+                displayMsg += displayMsg ? `\n\n[แนบไฟล์: ${attachedFileName}]` : `[ส่งไฟล์: ${attachedFileName}]`;
+            }
+            addChatMsg(displayMsg, 'user-msg');
+
+            // 2. จัดการข้อความที่จะส่งให้ AI ประมวลผลจริง (ซ่อนไฟล์ไว้ที่นี่)
+            let finalPrompt = text;
+            if (attachedFileData) {
+                finalPrompt += `\n\n[ข้อมูลอ้างอิงจากไฟล์: ${attachedFileName}]\n${attachedFileData}\n`;
+            }
+            chatHistory.push({ role: 'user', content: finalPrompt });
+            
+            // 3. รีเซ็ตค่าต่างๆ หลังกดส่ง
+            userInput.value = '';
+            userInput.style.height = '50px';
+            attachedFileData = null; // ล้างไฟล์หลังบ้านทิ้ง
+            attachedFileName = "";
+            document.getElementById('file-status').textContent = ''; // ล้างข้อความแจ้งเตือน
+            setLoading(true);
+
+            try {
+                const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `Bearer ${apiKey}`,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        model: selectedModel,
+                        messages: chatHistory
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) throw new Error(data.error?.message || "เกิดข้อผิดพลาดจาก API");
+                
+                const aiResponseText = data.choices[0].message.content;
+                
+                addChatMsg(aiResponseText, 'ai-msg');
+                chatHistory.push({ role: 'assistant', content: aiResponseText });
+                
+            } catch (error) {
+                addChatMsg(`❌ ข้อผิดพลาด: ${error.message}`, 'ai-msg');
+                chatHistory.pop();
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        // ==========================================
+        // PWA Setup
+        // ==========================================
+        function setupPWA() {
+            const manifestData = {
+                name: "Global AI Hub",
+                short_name: "AI Hub",
+                display: "standalone",
+                background_color: "#121212",
+                theme_color: "#ff007f",
+                icons: [{
+                    src: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23121212'/><circle cx='50' cy='50' r='30' stroke='%23ff007f' stroke-width='8' fill='none'/><circle cx='50' cy='50' r='10' fill='%23ff007f'/></svg>",
+                    sizes: "192x192",
+                    type: "image/svg+xml"
+                }]
+            };
+            const manifestBlob = new Blob([JSON.stringify(manifestData)], { type: 'application/json' });
+            document.getElementById('manifest-link').href = URL.createObjectURL(manifestBlob);
+
+            if ('serviceWorker' in navigator) {
+                const swCode = `self.addEventListener('fetch', (event) => { event.respondWith(fetch(event.request).catch(() => new Response('Offline'))); });`;
+                const swBlob = new Blob([swCode], { type: 'application/javascript' });
+                navigator.serviceWorker.register(URL.createObjectURL(swBlob)).catch(err => console.error(err));
+            }
+        }
+
+        window.onload = function() {
+            loadSettings();
+            loadPortalMenu();
+            fetchAllModelsRealtime();
+            setupPWA();
+        };
+		// ==========================================
+        // ระบบป้องกันการคลิกขวาและดู Source Code (เบื้องต้น)
+        // ==========================================
+        
+        // ปิดการคลิกขวา
+        document.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+        });
+
+        // ปิดการกดปุ่มคีย์ลัดต่างๆ
+        document.addEventListener('keydown', function(e) {
+            // ปิดปุ่ม F12
+            if (e.key === 'F12') {
+                e.preventDefault();
+            }
+            // ปิด Ctrl+Shift+I (เปิด DevTools) และ Ctrl+Shift+J (เปิด Console) และ Ctrl+Shift+C (Inspect Element)
+            if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j' || e.key === 'C' || e.key === 'c')) {
+                e.preventDefault();
+            }
+            // ปิด Ctrl+U (View Source)
+            if (e.ctrlKey && (e.key === 'U' || e.key === 'u')) {
+                e.preventDefault();
+            }
+        });
+    </script>
+</body>
+</html>

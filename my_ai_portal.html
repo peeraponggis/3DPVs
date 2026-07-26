@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Portal Nexus</title>
+    <!-- ลิงก์สำหรับ PWA Manifest -->
+    <link id="manifest-link" rel="manifest" href="">
+    <meta name="theme-color" content="#121212">
+    
+    <style>
+        :root {
+            --bg-dark: #0a0a0a;
+            --bg-card: #1a1a1a;
+            --bg-hover: #252525;
+            --text-main: #f0f0f0;
+            --text-muted: #888;
+            --accent: #00ffcc; /* สีเขียวไซเบอร์ */
+            --border: #333;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        #app-container {
+            width: 100%;
+            max-width: 1000px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        header {
+            text-align: center;
+            padding: 40px 0 20px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        header h1 {
+            color: var(--accent);
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            letter-spacing: 2px;
+        }
+
+        header p {
+            color: var(--text-muted);
+            font-size: 1rem;
+        }
+
+        /* ตารางรวม AI (Grid Layout) */
+        #ai-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+            padding: 20px 0;
+        }
+
+        /* ดีไซน์การ์ดแต่ละใบ */
+        .ai-card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 25px 20px;
+            text-decoration: none;
+            color: var(--text-main);
+            display: flex;
+            align-items: flex-start;
+            gap: 15px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .ai-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 4px; height: 100%;
+            background-color: transparent;
+            transition: 0.3s ease;
+        }
+
+        .ai-card:hover {
+            background-color: var(--bg-hover);
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+            border-color: var(--accent);
+        }
+
+        .ai-card:hover::before {
+            background-color: var(--accent);
+        }
+
+        .ai-icon {
+            font-size: 2.5rem;
+            line-height: 1;
+        }
+
+        .ai-info h2 {
+            font-size: 1.2rem;
+            margin-bottom: 5px;
+            color: #fff;
+        }
+
+        .ai-info p {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        /* แถบสถานะจำลอง (ให้ดูเท่ๆ) */
+        .status-badge {
+            display: inline-block;
+            margin-top: 10px;
+            font-size: 0.75rem;
+            padding: 3px 8px;
+            border-radius: 12px;
+            background: rgba(0, 255, 204, 0.1);
+            color: var(--accent);
+            border: 1px solid rgba(0, 255, 204, 0.2);
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="app-container">
+        <header>
+            <h1>⚡ AI PORTAL NEXUS</h1>
+            <p>ศูนย์รวมจุดเชื่อมต่อปัญญาประดิษฐ์ (คลิกเพื่อใช้งานเว็บหลัก)</p>
+        </header>
+
+        <div id="ai-grid">
+            <!-- ข้อมูล AI จะถูกโหลดมาใส่ตรงนี้ด้วย JavaScript -->
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // 1. ฐานข้อมูลลิงก์ AI ออฟฟิเชียล
+        // ==========================================
+        const aiProviders = [
+            {
+                name: "ChatGPT",
+                company: "OpenAI",
+                desc: "AI ยอดฮิต เก่งรอบด้าน ทั้งเขียนโค้ดและวิเคราะห์ข้อมูล",
+                url: "https://chatgpt.com/",
+                icon: "🤖",
+                tag: "General AI"
+            },
+            {
+                name: "Gemini",
+                company: "Google",
+                desc: "อัปเดตข้อมูลเรียลไทม์ ทำงานร่วมกับ Google Workspace ได้ดี",
+                url: "https://gemini.google.com/",
+                icon: "✨",
+                tag: "Fast & Search"
+            },
+            {
+                name: "Claude",
+                company: "Anthropic",
+                desc: "เก่งเรื่องภาษา เขียนบทความ และระบบวิเคราะห์เอกสารยาวๆ",
+                url: "https://claude.ai/",
+                icon: "🧠",
+                tag: "Pro Writing"
+            },
+            {
+                name: "DeepSeek",
+                company: "DeepSeek",
+                desc: "ม้ามืดจากจีน เก่งโค้ดดิ้งและคณิตศาสตร์ระดับท็อป",
+                url: "https://chat.deepseek.com/",
+                icon: "🐋",
+                tag: "Coding Master"
+            },
+            {
+                name: "Qwen",
+                company: "Alibaba Cloud",
+                desc: "โมเดลจีนประสิทธิภาพสูง รองรับภาษาไทยได้ดีเยี่ยม",
+                url: "https://tongyi.aliyun.com/qianwen/",
+                icon: "☁️",
+                tag: "Asian Top Tier"
+            },
+            {
+                name: "Perplexity",
+                company: "Perplexity AI",
+                desc: "Search Engine พลัง AI หาข้อมูลพร้อมอ้างอิงแหล่งที่มา",
+                url: "https://www.perplexity.ai/",
+                icon: "🔍",
+                tag: "AI Search"
+            },
+            {
+                name: "Copilot",
+                company: "Microsoft",
+                desc: "GPT-4 สำหรับใช้งานทั่วไป ฟรีภาพวาดจาก DALL-E 3",
+                url: "https://copilot.microsoft.com/",
+                icon: "💻",
+                tag: "Office & Draw"
+            },
+            {
+                name: "Poe",
+                company: "Quora",
+                desc: "ศูนย์รวม AI ทุกค่าย สลับโมเดลได้ในหน้าเดียว",
+                url: "https://poe.com/",
+                icon: "💬",
+                tag: "Aggregator"
+            }
+        ];
+
+        // ==========================================
+        // 2. เรนเดอร์หน้าจอ (สร้างการ์ดลิงก์)
+        // ==========================================
+        function renderGrid() {
+            const grid = document.getElementById('ai-grid');
+            
+            aiProviders.forEach(ai => {
+                // สร้างลิงก์ครอบการ์ด (target="_blank" เพื่อเปิดแท็บใหม่)
+                const card = document.createElement('a');
+                card.href = ai.url;
+                card.target = "_blank";
+                card.className = 'ai-card';
+                
+                card.innerHTML = `
+                    <div class="ai-icon">${ai.icon}</div>
+                    <div class="ai-info">
+                        <h2>${ai.name}</h2>
+                        <p>${ai.desc}</p>
+                        <div class="status-badge">${ai.tag}</div>
+                    </div>
+                `;
+                
+                grid.appendChild(card);
+            });
+        }
+
+        // ==========================================
+        // 3. เปลี่ยนตัวเองให้กลายเป็น PWA (Desktop App)
+        // ==========================================
+        function setupPWA() {
+            // สร้าง Manifest อัตโนมัติในหน่วยความจำ
+            const manifestData = {
+                name: "AI Portal Nexus",
+                short_name: "AI Portal",
+                display: "standalone",
+                background_color: "#0a0a0a",
+                theme_color: "#00ffcc",
+                icons: [{
+                    // ไอคอนรูปโลก/เครือข่าย แบบ SVG
+                    src: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%230a0a0a'/><circle cx='50' cy='50' r='35' stroke='%2300ffcc' stroke-width='6' fill='none'/><circle cx='50' cy='50' r='15' fill='%2300ffcc'/></svg>",
+                    sizes: "192x192",
+                    type: "image/svg+xml"
+                }]
+            };
+            
+            const manifestBlob = new Blob([JSON.stringify(manifestData)], { type: 'application/json' });
+            document.getElementById('manifest-link').href = URL.createObjectURL(manifestBlob);
+
+            // สร้าง Service Worker แบบง่าย (บังคับให้ Chrome รับรอง PWA)
+            if ('serviceWorker' in navigator) {
+                const swCode = `
+                    self.addEventListener('fetch', (event) => {
+                        event.respondWith(fetch(event.request).catch(() => new Response('กรุณาเชื่อมต่ออินเทอร์เน็ต')));
+                    });
+                `;
+                const swBlob = new Blob([swCode], { type: 'application/javascript' });
+                navigator.serviceWorker.register(URL.createObjectURL(swBlob))
+                    .then(() => console.log("PWA Service Worker พร้อมทำงาน"))
+                    .catch(err => console.error("PWA Error:", err));
+            }
+        }
+
+        // เริ่มต้นโปรแกรมเมื่อหน้าเว็บโหลดเสร็จ
+        window.onload = () => {
+            renderGrid();
+            setupPWA();
+        };
+    </script>
+</body>
+</html>
